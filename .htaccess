@@ -1,0 +1,68 @@
+# ==============================================================================
+# Domain Root Security Shield
+# ==============================================================================
+
+# 1. Disable Directory Browsing
+Options -Indexes -MultiViews
+
+# 2. Block direct HTTP access to databases, configs, logs, environments
+<FilesMatch "\.(db|sqlite|sqlite3|sql|bak|log|ini|env|sh|conf|csv)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 3. Block Hidden / Dot Files (.git, .env, etc.)
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 4. If data/ folder exists within document root, deny all HTTP requests
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^data(/.*)?$ - [F,L]
+
+    # Seamless root routing into serverWarehouse modules if root is DocumentRoot
+    RewriteCond %{REQUEST_URI} !^/serverWarehouse/
+    RewriteRule ^(orders|tech|setup|marketing|labels|assets)/(.*)$ serverWarehouse/$1/$2 [L,QSA]
+</IfModule>
+
+# 5. GZIP / Deflate Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# 6. Browser Asset Caching
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType application/x-javascript "access plus 7 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/webp "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+</IfModule>
+
