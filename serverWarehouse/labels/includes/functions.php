@@ -2,6 +2,7 @@
 // includes/functions.php
 // A collection of global PHP helper functions to format data nicely before sending to the UI
 // or before saving into the .sqlite file.
+require_once __DIR__ . '/auth.php';
 
 /**
  * Validates and converts an input into a strict integer. Returns `$default` if invalid.

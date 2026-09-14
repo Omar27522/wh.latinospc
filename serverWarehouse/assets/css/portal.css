@@ -189,6 +189,7 @@ body {
 .badge-labels { background: rgba(33, 136, 56, 0.15); color: #28a745; border: 1px solid rgba(33, 136, 56, 0.35); }
 .badge-orders { background: rgba(0, 86, 179, 0.18); color: #38bdf8; border: 1px solid rgba(0, 86, 179, 0.4); }
 .badge-marketing { background: rgba(8, 45, 69, 0.6); color: #daedfb; border: 1px solid rgba(218, 237, 251, 0.35); }
+.badge-tech { background: rgba(234, 179, 8, 0.15); color: #f59e0b; border: 1px solid rgba(234, 179, 8, 0.35); }
 
 .footer-note {
     margin-top: 40px;

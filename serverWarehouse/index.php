@@ -1,4 +1,8 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once __DIR__ . '/core/Company.php';
 
 // Redirect to Setup Wizard if system has not been initialized yet
@@ -27,6 +31,24 @@ if (!Company::isSetupComplete()) {
 
 <body>
 
+    <!-- User Authentication Status Bar -->
+    <?php if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true): ?>
+        <div style="position: absolute; top: 16px; right: 20px; display: flex; align-items: center; gap: 10px; z-index: 100;">
+            <span style="font-size: 0.85rem; color: var(--text-dim); background: rgba(8, 45, 69, 0.7); border: 1px solid var(--glass-border); padding: 6px 14px; border-radius: 20px; backdrop-filter: blur(8px);">
+                👤 <?= htmlspecialchars($_SESSION['username']) ?> <span style="opacity: 0.7;">(<?= htmlspecialchars($_SESSION['role'] ?? 'User') ?>)</span>
+            </span>
+            <a href="orders/core/logout.php" style="font-size: 0.85rem; font-weight: 700; color: #ef4444; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); padding: 6px 14px; border-radius: 20px; text-decoration: none;">
+                🚪 Sign Out
+            </a>
+        </div>
+    <?php else: ?>
+        <div style="position: absolute; top: 16px; right: 20px; z-index: 100;">
+            <a href="orders/core/login.php" style="font-size: 0.85rem; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); padding: 6px 16px; border-radius: 20px; text-decoration: none;">
+                🔒 Sign In
+            </a>
+        </div>
+    <?php endif; ?>
+
     <div class="background-blob"></div>
 
     <main class="portal-main">
@@ -36,7 +58,7 @@ if (!Company::isSetupComplete()) {
                 <div class="icon-box">🔧</div>
                 <h2>Technician Dashboard</h2>
                 <p>Hardware testing, computer logs, and parts inventory management.</p>
-                <div class="badge badge-labels">Module Active</div>
+                <div class="badge badge-tech">Module Active</div>
             </a>
 
             <!-- ORDERS MODULE -->
@@ -54,16 +76,15 @@ if (!Company::isSetupComplete()) {
                 <div class="icon-box">📣</div>
                 <h2>Marketing Hub</h2>
                 <p>Lead generation, campaign tracking, and outreach automation for B2B expansion.</p>
-                <div class="badge badge-marketing">Module Initialized</div>
+                <div class="badge badge-marketing">Module Active</div>
             </a>
 
-
-            <a href="https://docs.google.com/spreadsheets/d/13X8PYZFg4NdXMYhveHBj4_sqNkGzpo2wmSgZ8aLcz3M/edit?usp=sharing"
-                class="module-card">
-                <div class="icon-box">🔗</div>
-                <h2>Links</h2>
-                <p>Sheets file</p>
-                <div class="badge badge-marketing">Active</div>
+            <!-- LABELS MODULE -->
+            <a href="labels/index.php" class="module-card">
+                <div class="icon-box">🏷️</div>
+                <h2>Labels & Intake</h2>
+                <p>Hardware inventory tracking, thermal printing, and barcode label generator.</p>
+                <div class="badge badge-labels">Module Active</div>
             </a>
         </div>
 
@@ -77,12 +98,14 @@ if (!Company::isSetupComplete()) {
             <p class="description">
                 Whether you're operating the <strong>Tech Center</strong> for precise hardware diagnostics, test yield
                 auditing, and live parts inventory tracking; leveraging the <strong>Orders Module</strong> for
-                AI-powered intake digitization, physical warehouse logistics, and real-time CRM synchronization; or
+                AI-powered intake digitization, physical warehouse logistics, and real-time CRM synchronization;
+                generating thermal barcodes and hardware tracking tags in the <strong>Labels Module</strong>; or
                 driving growth in the <strong>Marketing Hub</strong> via automated lead generation, campaign tracking,
                 and performance analytics—this integrated ecosystem unifies every aspect of our workflow.
             </p>
         </header>
     </main>
+
 
     <footer class="footer-note">
         <a href="<?= htmlspecialchars(Company::getUrl()) ?>" style="color: white; text-decoration: none;" target="_blank"><?= htmlspecialchars(Company::getName()) ?></a>.

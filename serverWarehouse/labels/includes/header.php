@@ -1,6 +1,7 @@
 <?php
 // includes/header.php
 // This snippet forms the top half of the HTML document and persistent Sidebar menu.
+require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/../../core/Security.php';
 require_once __DIR__ . '/../../core/Company.php';
 Security::init();
@@ -106,8 +107,14 @@ Security::init();
                 <li><a href="index.php" class="nav-link" id="nav-dashboard">🏠 Dashboard</a></li>
                 <li><a href="labels.php" class="nav-link" id="nav-labels">📦 Inventory Tracker</a></li>
                 <li><a href="new_label.php" class="nav-link" id="nav-new-label">🏷️ Print Hardware Label</a></li>
-                <li><a href="../" class="nav-link" id="nav-hardware">📦 Orders</a></li>
-
+                <li style="color: var(--text-secondary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding-left: 12px; margin-top: 18px; margin-bottom: 8px;">Portal & Modules</li>
+                <li><a href="../index.php" class="nav-link">🌐 Main Portal</a></li>
+                <li><a href="../orders/index.php" class="nav-link">📊 Orders & WH</a></li>
+                <li><a href="../tech/index.php" class="nav-link">🔧 Technician</a></li>
+                <li><a href="../marketing/index.php" class="nav-link">📣 Marketing</a></li>
+                <li style="color: var(--text-secondary); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding-left: 12px; margin-top: 18px; margin-bottom: 8px;">Account</li>
+                <li style="padding-left: 12px; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px;">👤 <?= htmlspecialchars($_SESSION['username'] ?? 'User') ?></li>
+                <li><a href="../orders/core/logout.php" class="nav-link" style="color: #ef4444;">🚪 Sign Out</a></li>
             </ul>
         </nav>
     </aside>

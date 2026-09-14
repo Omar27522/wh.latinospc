@@ -38,6 +38,11 @@
                 <li><a href="?page=reports" class="<?= $active_page === 'reports' ? 'active' : '' ?>">Reports</a></li>
                 <li><a href="?page=docs" class="<?= $active_page === 'docs' ? 'active' : '' ?>">Docs</a></li>
             </ul>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 0.8rem; color: var(--text-dim); font-weight: 600;">👤 <?= h($_SESSION['username'] ?? 'User') ?></span>
+                <a href="../orders/core/logout.php" style="text-decoration: none; color: #ef4444; font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">Sign Out</a>
+            </div>
         </div>
     </nav>
+
 

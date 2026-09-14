@@ -17,6 +17,11 @@ if (!isset($_COOKIE['device_id'])) {
 
 // 1. Auto-Redirect if already logged in
 if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true) {
+    $return_url = $_GET['return_url'] ?? '';
+    if (!empty($return_url) && preg_match('#^(/[a-zA-Z0-9_\-\./\?=&%#]+|\.\./[a-zA-Z0-9_\-\./\?=&%#]+)$#', $return_url) && !str_starts_with($return_url, '//')) {
+        header("Location: " . $return_url);
+        exit();
+    }
     if ($_SESSION['role'] === 'Admin') {
         $redirect = "../index.php";
     } elseif ($_SESSION['role'] === 'Front Desk') {
@@ -308,10 +313,17 @@ try {
                         $_SESSION['force_password_change'] = true;
                     }
 
-                    // Redirect based on role
+                    // Redirect based on role or return_url
                     if (isset($_SESSION['force_password_change']) && $_SESSION['force_password_change'] === true) {
                         header("Location: ../index.php?view=settings");
-                    } elseif ($_SESSION['role'] === 'Admin') {
+                        exit();
+                    }
+                    $return_url = $_POST['return_url'] ?? ($_GET['return_url'] ?? '');
+                    if (!empty($return_url) && preg_match('#^(/[a-zA-Z0-9_\-\./\?=&%#]+|\.\./[a-zA-Z0-9_\-\./\?=&%#]+)$#', $return_url) && !str_starts_with($return_url, '//')) {
+                        header("Location: " . $return_url);
+                        exit();
+                    }
+                    if ($_SESSION['role'] === 'Admin') {
                         header("Location: ../index.php");
                     } elseif ($_SESSION['role'] === 'Front Desk') {
                         header("Location: ../index.php?view=calendar");
@@ -525,6 +537,7 @@ try {
         <?php endif; ?>
 
         <form method="POST" action="" id="login-form">
+            <input type="hidden" name="return_url" value="<?= htmlspecialchars($_REQUEST['return_url'] ?? '') ?>">
             <div id="username-step">
                 <div class="login-form-group">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">

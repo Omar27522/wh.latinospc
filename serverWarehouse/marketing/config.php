@@ -39,15 +39,13 @@ if (!function_exists('h')) {
     }
 }
 
-// Role-Based Access Control
-$user_role = $_SESSION['role'] ?? 'Marketing';
-$allowed_roles = ['Admin', 'Manager', 'Sales', 'Marketing'];
-$has_access = in_array($user_role, $allowed_roles) || strpos($user_role, 'Admin') !== false || strpos($user_role, 'Manager') !== false;
+// Authentication Guard - Any signed user has access
+require_once __DIR__ . '/../core/Auth.php';
+AuthGuard::check();
 
-if (!$has_access) {
-    http_response_code(403);
-    die("<!DOCTYPE html><html><body style='font-family: sans-serif; text-align: center; padding: 4rem; background: #0f172a; color: #f8fafc;'><h2>403 - Access Denied</h2><p>Your role (<strong>" . h($user_role) . "</strong>) does not have access to the Marketing Hub.</p><a href='../index.php' style='color: #38bdf8;'>Return to Portal</a></body></html>");
-}
+$user_role = $_SESSION['role'] ?? 'User';
+$current_user = $_SESSION['username'] ?? 'User';
+
 
 // Error Reporting (Development)
 error_reporting(E_ALL);
