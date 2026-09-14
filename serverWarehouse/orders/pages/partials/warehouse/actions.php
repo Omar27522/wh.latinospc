@@ -4,7 +4,7 @@
  * Handles all POST requests for inventory, zones, statuses, and location photos.
  */
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action'])) {
     if (!Security::validate($_POST['csrf_token'] ?? '')) {
         die("Security Error: CSRF Token Invalid.");
     }

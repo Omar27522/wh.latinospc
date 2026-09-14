@@ -17,9 +17,14 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     exit;
 }
 
-if (!Security::validate($_POST['csrf_token'] ?? '')) {
+// Read input from $_POST or JSON body
+$raw_input = file_get_contents('php://input');
+$json_input = json_decode($raw_input, true);
+$data = is_array($json_input) ? array_merge($_POST, $json_input) : $_POST;
+
+if (!Security::validate($data['csrf_token'] ?? '')) {
     http_response_code(403);
-    echo json_encode(['error' => 'Invalid CSRF token']);
+    echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
     exit;
 }
 
@@ -27,58 +32,63 @@ try {
     $conn_wh = Database::warehouse();
     $current_user = $_SESSION['username'] ?? 'System';
 
-    $sector = $_POST['sector'] ?? 'Laptops';
-    $loc = $_POST['location_code'] ?? '';
-    $brand = $_POST['brand'] ?? '';
-    $model = $_POST['model'] ?? '';
-    $qty = (int)($_POST['quantity'] ?? 1);
-    $price = (float)($_POST['price'] ?? 0.00);
+    $sector = trim($data['sector'] ?? 'Laptops');
+    $loc = trim($data['location_code'] ?? '');
+    $brand = trim($data['brand'] ?? '');
+    $model = trim($data['model'] ?? '');
+    $qty = (int)($data['quantity'] ?? 1);
+    if ($qty < 1) $qty = 1;
+    $price = (float)Security::sanitize_float($data['price'] ?? 0.00);
 
     if (empty($brand) || empty($model) || empty($loc)) {
         http_response_code(400);
-        echo json_encode(['error' => 'Missing required fields (brand, model, location_code).']);
+        echo json_encode(['success' => false, 'error' => 'Missing required fields (brand, model, location_code).']);
         exit;
     }
+
+    // Ensure location exists
+    $stmt_loc = $conn_wh->prepare("INSERT OR IGNORE INTO locations (location_code, status) VALUES (?, 'Idle')");
+    $stmt_loc->execute([$loc]);
 
     // Dynamic Specs mapping based on sector
     $specs = [];
     if ($sector === 'Laptops') {
         $specs = [
-            'cpu' => $_POST['cpu'] ?? '',
-            'gpu' => $_POST['gpu'] ?? '',
-            'ram' => $_POST['ram'] ?? '',
-            'storage' => $_POST['storage'] ?? '',
-            'battery' => $_POST['battery'] ?? '',
-            'windows' => $_POST['windows'] ?? '',
-            'series' => $_POST['series'] ?? '',
-            'gen' => $_POST['gen'] ?? '',
-            'bios' => $_POST['bios'] ?? '',
-            'condition' => $_POST['condition'] ?? 'Used',
-            'notes' => $_POST['notes'] ?? ''
+            'cpu' => trim($data['cpu'] ?? ''),
+            'gpu' => trim($data['gpu'] ?? ''),
+            'ram' => trim($data['ram'] ?? ''),
+            'storage' => trim($data['storage'] ?? ''),
+            'battery' => trim($data['battery'] ?? ''),
+            'windows' => trim($data['windows'] ?? ''),
+            'series' => trim($data['series'] ?? ''),
+            'gen' => trim($data['gen'] ?? ''),
+            'bios' => trim($data['bios'] ?? ''),
+            'condition' => trim($data['condition'] ?? 'Used'),
+            'notes' => trim($data['notes'] ?? '')
         ];
     } elseif ($sector === 'Gaming') {
         $specs = [
-            'category' => $_POST['gaming_category'] ?? 'PC',
-            'series' => $_POST['series'] ?? '',
-            'condition' => $_POST['condition'] ?? 'Used',
-            'notes' => $_POST['notes'] ?? '',
-            'ram' => $_POST['ram'] ?? '',
-            'storage' => $_POST['storage'] ?? '',
-            'cpu' => $_POST['cpu'] ?? '',
-            'gpu' => $_POST['gpu'] ?? ''
+            'category' => trim($data['gaming_category'] ?? 'PC'),
+            'series' => trim($data['series'] ?? ''),
+            'condition' => trim($data['condition'] ?? 'Used'),
+            'notes' => trim($data['notes'] ?? ''),
+            'ram' => trim($data['ram'] ?? ''),
+            'storage' => trim($data['storage'] ?? ''),
+            'cpu' => trim($data['cpu'] ?? ''),
+            'gpu' => trim($data['gpu'] ?? '')
         ];
     } elseif ($sector === 'Desktops') {
         $specs = [
-            'cpu_gen' => $_POST['cpu_gen'] ?? '',
-            'condition' => $_POST['condition'] ?? 'Used',
-            'notes' => $_POST['notes'] ?? ''
+            'cpu_gen' => trim($data['cpu_gen'] ?? ''),
+            'condition' => trim($data['condition'] ?? 'Used'),
+            'notes' => trim($data['notes'] ?? '')
         ];
     } else {
         $specs = [
-            'type' => $_POST['type'] ?? '',
-            'voltage' => $_POST['voltage'] ?? '',
-            'condition' => $_POST['condition'] ?? 'Used',
-            'notes' => $_POST['notes'] ?? ''
+            'type' => trim($data['type'] ?? ''),
+            'voltage' => trim($data['voltage'] ?? ''),
+            'condition' => trim($data['condition'] ?? 'Used'),
+            'notes' => trim($data['notes'] ?? '')
         ];
     }
 
@@ -96,12 +106,12 @@ try {
         echo json_encode([
             'success' => true,
             'new_id' => $new_id,
-            'new_total' => $new_total
+            'new_total' => (int)$new_total
         ]);
     } else {
         throw new Exception("Failed to insert inventory item.");
     }
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }

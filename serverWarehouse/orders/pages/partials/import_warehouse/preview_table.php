@@ -11,12 +11,17 @@
             <h2 style="font-weight: 900; font-size: 1.4rem; color: var(--text-main);">Verification & Sanitization Report</h2>
             <p style="color: var(--text-secondary); font-size: 0.95rem;">Please review the parsed results and validation status before importing.</p>
         </div>
-        <form action="index.php?view=import_warehouse" method="POST">
-            <input type="hidden" name="action" value="cancel_import">
-            <button type="submit" class="btn-main" style="background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; box-shadow: none; font-size: 0.9rem; padding: 10px 20px; border-radius: 12px;">
-                ❌ Cancel Import
-            </button>
-        </form>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <a href="../sampleWHdata/intake.pdf" target="_blank" class="btn-main" style="background: white; color: #166534; border: 1px solid #bbf7d0; box-shadow: var(--shadow-sm); font-size: 0.9rem; padding: 10px 18px; border-radius: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 800;">
+                🖨️ Print Intake Form
+            </a>
+            <form action="index.php?view=import_warehouse" method="POST" style="margin: 0;">
+                <input type="hidden" name="action" value="cancel_import">
+                <button type="submit" class="btn-main" style="background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; box-shadow: none; font-size: 0.9rem; padding: 10px 20px; border-radius: 12px;">
+                    ❌ Cancel Import
+                </button>
+            </form>
+        </div>
     </div>
 
     <div id="confirm-import-container" style="display: <?= $accepted > 0 ? 'block' : 'none' ?>; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 25px; margin-bottom: 30px;">
@@ -25,14 +30,14 @@
 
             <!-- Select Target Area / Working Zone -->
             <div style="display: flex; flex-direction: column; gap: 8px;">
-                <label for="override_zone_select" style="font-weight: 800; font-size: 0.9rem; color: #475569;">1. Target Area (Zone)</label>
+                <label for="override_zone_select" style="font-weight: 800; font-size: 0.9rem; color: #475569;">1. Target Area (Zone Override)</label>
                 <div style="display: flex; gap: 10px; width: 100%;">
                     <select name="override_zone_select" id="override_zone_select" style="flex: 1; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 12px; font-weight: bold; background: white; font-size: 0.95rem; outline: none;" onchange="onZoneChange()">
+                        <option value="" selected>-- Auto-Detect Zone per Location (Default) --</option>
                         <option value="__NEW_ZONE__">+ Create New Zone...</option>
-                        <option value="" <?= empty($suggested_zone) ? 'selected' : '' ?>>-- Auto-Detect Zone --</option>
                         <?php foreach ($working_zones as $wz): ?>
-                            <option value="<?= htmlspecialchars($wz) ?>" <?= ($suggested_zone === $wz) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($wz) ?><?= ($suggested_zone === $wz) ? ' (Suggested)' : '' ?>
+                            <option value="<?= htmlspecialchars($wz) ?>">
+                                <?= htmlspecialchars($wz) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -154,8 +159,22 @@
                                 </div>
                             <?php endif; ?>
                         </td>
-                        <td class="editable-cell" data-field="location" style="padding: 5px;">
-                            <input type="text" class="cell-input <?= empty(trim($row['location'])) ? 'warning-empty' : '' ?>" value="<?= htmlspecialchars($row['location']) ?>" style="width: 100%; padding: 6px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; text-align: center;">
+                        <td class="editable-cell" data-field="location" style="padding: 5px; text-align: center;">
+                            <input type="text" class="cell-input <?= empty(trim($row['location'])) ? 'warning-empty' : '' ?>" value="<?= htmlspecialchars($row['location']) ?>" style="width: 100%; padding: 6px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; text-align: center; text-transform: uppercase;">
+                            <?php
+                            $rowLoc = strtoupper(trim($row['location']));
+                            $rowZone = 'General';
+                            if (preg_match('/^(?:Zone\s*[-_]?)?([a-zA-Z]+)/iu', $rowLoc, $m)) {
+                                $rowZone = 'Zone ' . strtoupper($m[1]);
+                            }
+                            ?>
+                            <?php if (!empty($rowLoc)): ?>
+                                <div style="margin-top: 3px;">
+                                    <span style="display: inline-block; font-size: 0.68rem; font-weight: 800; color: #0369a1; background: #e0f2fe; border: 1px solid #bae6fd; padding: 2px 6px; border-radius: 6px;" title="Auto-mapped working zone">
+                                        📍 <?= htmlspecialchars($rowZone) ?>
+                                    </span>
+                                </div>
+                            <?php endif; ?>
                         </td>
                         <td class="editable-cell" data-field="brand" style="padding: 5px;">
                             <input type="text" class="cell-input <?= (empty(trim($row['parsed']['brand'])) || $row['parsed']['brand'] === 'Unknown') ? 'warning-empty' : '' ?>" value="<?= htmlspecialchars($row['parsed']['brand']) ?>" style="width: 100%; padding: 6px; border-radius: 6px; font-size: 0.85rem;">

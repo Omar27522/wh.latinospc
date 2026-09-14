@@ -7,6 +7,10 @@ function initWarehouseSpreadsheetEvents() {
     const listContainer = document.getElementById('inventory-list');
     if (!listContainer) return;
 
+    // Guard against duplicate binding
+    if (listContainer.dataset.spreadsheetEventsBound === 'true') return;
+    listContainer.dataset.spreadsheetEventsBound = 'true';
+
     // Check if we are in spreadsheet mode (metadata block is present)
     const metadata = document.getElementById('warehouse-metadata');
     if (!metadata) return;
@@ -14,6 +18,23 @@ function initWarehouseSpreadsheetEvents() {
     // Handle blur updates (Auto-save)
     listContainer.addEventListener('focusout', (e) => {
         if (e.target && e.target.classList.contains('cell-input')) {
+            const row = e.target.closest('tr');
+            if (!row) return;
+
+            // For the blank row, do NOT auto-save if focus is simply moving between cells inside the same row
+            if (row.getAttribute('data-id') === 'new') {
+                if (e.relatedTarget && row.contains(e.relatedTarget)) {
+                    return; // User is still typing across other cells in the new row
+                }
+                // Focus left the row completely: if brand and model are filled, save it
+                const brandVal = row.querySelector('[data-field="brand"] .cell-input')?.value.trim() || '';
+                const modelVal = row.querySelector('[data-field="model"] .cell-input')?.value.trim() || '';
+                if (brandVal !== '' && modelVal !== '') {
+                    createWarehouseRowFromBlank(row);
+                }
+                return;
+            }
+
             handleWarehouseCellSave(e.target);
         }
     });
@@ -39,13 +60,33 @@ function initWarehouseSpreadsheetEvents() {
             focusWarehouseCell(allRows, rowIndex - 1, colIndex);
         } else if (e.key === 'Enter') {
             e.preventDefault();
+            if (row.getAttribute('data-id') === 'new') {
+                const brandVal = row.querySelector('[data-field="brand"] .cell-input')?.value.trim() || '';
+                const modelVal = row.querySelector('[data-field="model"] .cell-input')?.value.trim() || '';
+                if (brandVal && modelVal) {
+                    createWarehouseRowFromBlank(row);
+                } else {
+                    focusWarehouseCell(allRows, rowIndex, colIndex + 1);
+                }
+                return;
+            }
             input.blur();
             focusWarehouseCell(allRows, rowIndex + 1, colIndex);
         }
     });
 
-    // Handle click on ➕ indicator to clone/copy row data
+    // Handle clicks: [+] indicator button to add row & ➕ button to clone/copy row data
     listContainer.addEventListener('click', (e) => {
+        const addBtn = e.target.closest('.btn-add-row-indicator');
+        if (addBtn) {
+            e.preventDefault();
+            const row = addBtn.closest('tr');
+            if (row) {
+                createWarehouseRowFromBlank(row);
+            }
+            return;
+        }
+
         const cloneBtn = e.target.closest('.btn-clone-row');
         if (cloneBtn) {
             e.preventDefault();
@@ -128,14 +169,8 @@ async function handleWarehouseCellSave(input) {
     const field = cell.getAttribute('data-field');
     const val = input.value.trim();
 
-    // Skip save if empty and it's a new row
+    // Skip save if it's a new row (handled by createWarehouseRowFromBlank)
     if (rowId === 'new') {
-        const brandVal = row.querySelector('[data-field="brand"] .cell-input')?.value.trim() || '';
-        const modelVal = row.querySelector('[data-field="model"] .cell-input')?.value.trim() || '';
-
-        if (brandVal !== '' && modelVal !== '') {
-            createWarehouseRowFromBlank(row);
-        }
         return;
     }
 
@@ -182,15 +217,51 @@ async function handleWarehouseCellSave(input) {
 }
 
 async function createWarehouseRowFromBlank(row) {
-    const metadata = document.getElementById('warehouse-metadata');
-    if (!metadata) return;
+    if (!row || row.dataset.isSubmitting === 'true') return;
 
-    const sector = metadata.getAttribute('data-sector');
+    const metadata = document.getElementById('warehouse-metadata');
+    if (!metadata) {
+        console.error('Warehouse metadata missing');
+        return;
+    }
+
+    const sector = metadata.getAttribute('data-sector') || 'Laptops';
     const locationCode = metadata.getAttribute('data-location-code');
     const csrfToken = metadata.getAttribute('data-csrf');
 
-    const brand = row.querySelector('[data-field="brand"] .cell-input')?.value.trim() || '';
-    const model = row.querySelector('[data-field="model"] .cell-input')?.value.trim() || '';
+    const brandInput = row.querySelector('[data-field="brand"] .cell-input');
+    const modelInput = row.querySelector('[data-field="model"] .cell-input');
+    const brand = brandInput?.value.trim() || '';
+    const model = modelInput?.value.trim() || '';
+
+    if (!brand || !model) {
+        const msg = 'Please enter both Brand and Model to add this inventory item.';
+        if (window.IQA_Notify) {
+            window.IQA_Notify.warning(msg);
+        } else {
+            alert(msg);
+        }
+        if (!brand && brandInput) {
+            brandInput.focus();
+            brandInput.style.outline = '2px solid #ef4444';
+            setTimeout(() => brandInput.style.outline = '', 2500);
+        } else if (!model && modelInput) {
+            modelInput.focus();
+            modelInput.style.outline = '2px solid #ef4444';
+            setTimeout(() => modelInput.style.outline = '', 2500);
+        }
+        return;
+    }
+
+    row.dataset.isSubmitting = 'true';
+    const btnIndicator = row.querySelector('.btn-add-row-indicator');
+    let originalBtnText = '➕';
+    if (btnIndicator) {
+        originalBtnText = btnIndicator.textContent;
+        btnIndicator.textContent = '⏳';
+        btnIndicator.disabled = true;
+    }
+
     const qty = parseInt(row.querySelector('[data-field="quantity"] .cell-input')?.value) || 1;
     const price = parseFloat(row.querySelector('[data-field="price"] .cell-input')?.value) || 0.00;
     const condition = row.querySelector('[data-field="condition"] .cell-input')?.value.trim() || 'Used';
@@ -228,9 +299,6 @@ async function createWarehouseRowFromBlank(row) {
         formData.set('voltage', row.querySelector('[data-field="voltage"] .cell-input')?.value.trim() || '');
     }
 
-    const btnIndicator = row.querySelector('.btn-add-row-indicator');
-    if (btnIndicator) btnIndicator.textContent = '⏳';
-
     try {
         const response = await fetch('api/add_inventory_item.php', {
             method: 'POST',
@@ -238,7 +306,7 @@ async function createWarehouseRowFromBlank(row) {
         });
 
         const result = await response.json();
-        if (result.success) {
+        if (response.ok && result.success) {
             if (window.IQA_Notify) {
                 window.IQA_Notify.success('Item successfully added ✨');
             }
@@ -253,13 +321,37 @@ async function createWarehouseRowFromBlank(row) {
                         sessionStorage.setItem('warehouse_restore_item_id', result.new_id);
                     }
                 }
+            } else {
+                sessionStorage.setItem('warehouse_restore_field', 'brand');
+                sessionStorage.setItem('warehouse_restore_item_id', result.new_id);
             }
 
             window.location.reload();
+        } else {
+            const errMsg = result.error || 'Failed to add item to inventory.';
+            if (window.IQA_Notify) {
+                window.IQA_Notify.error(errMsg);
+            } else {
+                alert(errMsg);
+            }
+            delete row.dataset.isSubmitting;
+            if (btnIndicator) {
+                btnIndicator.textContent = originalBtnText;
+                btnIndicator.disabled = false;
+            }
         }
     } catch (err) {
         console.error('Error adding row:', err);
-        if (btnIndicator) btnIndicator.textContent = '➕';
+        if (window.IQA_Notify) {
+            window.IQA_Notify.error('A network error occurred while adding row.');
+        } else {
+            alert('A network error occurred while adding row.');
+        }
+        delete row.dataset.isSubmitting;
+        if (btnIndicator) {
+            btnIndicator.textContent = originalBtnText;
+            btnIndicator.disabled = false;
+        }
     }
 }
 
@@ -361,4 +453,11 @@ async function consolidateWarehouseRows() {
             btn.innerHTML = originalHtml;
         }
     }
+}
+
+// Auto-initialize when file is loaded or DOM becomes ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initWarehouseSpreadsheetEvents);
+} else {
+    initWarehouseSpreadsheetEvents();
 }

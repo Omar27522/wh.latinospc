@@ -34,10 +34,17 @@
             <button type="button" onclick="downloadWarehouseCSV()" class="btn-export">
                 📊 Export CSV
             </button>
-            <button type="button" onclick="window.location.href='index.php?view=import_warehouse'"
-                class="btn-export" style="background: #1e293b; color: white; border: none;">
+            <?php
+            $import_bulk_url = 'index.php?view=import_warehouse'
+                . ($selected_sector ? '&sector=' . urlencode($selected_sector) : '')
+                . ($selected_loc && $selected_loc !== 'GLOBAL' ? '&loc=' . urlencode($selected_loc) : '')
+                . (!empty($active_zone_name) ? '&zone=' . urlencode($active_zone_name) : '');
+            ?>
+            <button type="button" onclick="window.location.href='<?= htmlspecialchars($import_bulk_url) ?>'"
+                class="btn-export" style="background: #1e293b; color: white; border: none;" title="Bulk import into <?= htmlspecialchars($selected_loc ?: 'Warehouse') ?>">
                 📥 Import Bulk
             </button>
+
         </div>
     </div>
 

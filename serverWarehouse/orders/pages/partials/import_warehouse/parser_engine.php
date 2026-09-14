@@ -576,34 +576,55 @@ function parseItemString($itemStr, $notesStr = '', $serialStr = '') {
 }
 
 function getOrCreateLocation($conn, $locCode, $zoneName = null) {
-    $locCode = trim($locCode);
-    if (empty($locCode)) return;
+    $locCode = strtoupper(trim($locCode));
+    if (empty($locCode)) return 'General';
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM locations WHERE location_code = ?");
+    // Check if location already exists
+    $stmt = $conn->prepare("SELECT working_zone_name FROM locations WHERE location_code = ?");
     $stmt->execute([$locCode]);
-    $exists = $stmt->fetchColumn() > 0;
+    $existingZone = $stmt->fetchColumn();
+    $exists = ($existingZone !== false);
+
+    $overrideGiven = ($zoneName !== null && trim($zoneName) !== '');
 
     if (!$exists) {
-        if ($zoneName === null || trim($zoneName) === '') {
+        if (!$overrideGiven) {
             $zoneName = 'General';
-            if (preg_match('/^([a-zA-Z]+)/u', $locCode, $matches)) {
+            // Extract alphabetical prefix from location code (e.g. "N4" -> "N", "N-4" -> "N", "Zone N" -> "N", "A-2" -> "A")
+            if (preg_match('/^(?:Zone\s*[-_]?)?([a-zA-Z]+)/iu', $locCode, $matches)) {
                 $prefix = strtoupper($matches[1]);
-                $zoneName = 'Zone ' . $prefix;
+                // Check if working_zones already has a matching zone name (e.g. "Zone N" or "N")
+                $stmtCheck = $conn->prepare("SELECT name FROM working_zones WHERE UPPER(name) = ? OR UPPER(name) = ? OR UPPER(name) = ? LIMIT 1");
+                $stmtCheck->execute(['ZONE ' . $prefix, $prefix, 'ZONE-' . $prefix]);
+                $foundZone = $stmtCheck->fetchColumn();
+                if ($foundZone) {
+                    $zoneName = $foundZone;
+                } else {
+                    $zoneName = 'Zone ' . $prefix;
+                }
             }
         }
 
+        // Register the working zone if not already present
         $stmtZone = $conn->prepare("INSERT OR IGNORE INTO working_zones (name) VALUES (?)");
         $stmtZone->execute([$zoneName]);
 
+        // Auto-create location and map it to its corresponding working zone
         $stmtLoc = $conn->prepare("INSERT OR IGNORE INTO locations (location_code, status, working_zone_name) VALUES (?, 'Idle', ?)");
         $stmtLoc->execute([$locCode, $zoneName]);
     } else {
-        if ($zoneName !== null && trim($zoneName) !== '') {
+        // If explicit override given and differs from existing, update it
+        if ($overrideGiven && $zoneName !== $existingZone) {
             $stmtZone = $conn->prepare("INSERT OR IGNORE INTO working_zones (name) VALUES (?)");
             $stmtZone->execute([$zoneName]);
 
             $stmtLoc = $conn->prepare("UPDATE locations SET working_zone_name = ? WHERE location_code = ?");
             $stmtLoc->execute([$zoneName, $locCode]);
+        } else {
+            $zoneName = $existingZone ?: 'General';
         }
     }
+
+    return $zoneName;
 }
+

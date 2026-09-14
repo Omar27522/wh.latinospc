@@ -272,6 +272,12 @@ $page_content = ob_get_clean();
         <script src="assets/js/new_order.js?v=<?= filemtime('assets/js/new_order.js') ?>" defer></script>
         <script src="assets/js/import_work_order.js?v=<?= filemtime('assets/js/import_work_order.js') ?>" defer></script>
     <?php elseif ($active_key === 'warehouse'): ?>
+        <script src="assets/js/warehouse/warehouse_gate.js?v=<?= filemtime('assets/js/warehouse/warehouse_gate.js') ?>" defer></script>
+        <script src="assets/js/warehouse/warehouse_form.js?v=<?= filemtime('assets/js/warehouse/warehouse_form.js') ?>" defer></script>
+        <script src="assets/js/warehouse/warehouse_spreadsheet.js?v=<?= filemtime('assets/js/warehouse/warehouse_spreadsheet.js') ?>" defer></script>
+        <script src="assets/js/warehouse/warehouse_bulk.js?v=<?= filemtime('assets/js/warehouse/warehouse_bulk.js') ?>" defer></script>
+        <script src="assets/js/warehouse/warehouse_modals.js?v=<?= filemtime('assets/js/warehouse/warehouse_modals.js') ?>" defer></script>
+        <script src="assets/js/warehouse/warehouse_inventory.js?v=<?= filemtime('assets/js/warehouse/warehouse_inventory.js') ?>" defer></script>
         <script src="assets/js/warehouse.js?v=<?= filemtime('assets/js/warehouse.js') ?>" defer></script>
     <?php elseif ($active_key === 'import_warehouse'): ?>
         <script src="assets/js/import_warehouse.js?v=<?= filemtime('assets/js/import_warehouse.js') ?>" defer></script>

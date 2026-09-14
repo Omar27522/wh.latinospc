@@ -370,8 +370,8 @@ if (UI::is_ajax()) {
                     <input type="number" step="1" class="cell-input text-center font-bold" placeholder="Qty...">
                 </td>
                 <td style="text-align:right;">
-                    <div class="action-buttons">
-                        <button type="button" class="btn-add-row-indicator" style="background: none; border: none; font-size: 1rem; opacity: 0.3;">➕</button>
+                    <div class="action-buttons" style="justify-content: flex-end;">
+                        <button type="button" class="btn-add-row-indicator" title="Add this item to inventory (or press Enter)" style="background: #2563eb; color: white; border: none; font-size: 1rem; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.15); transition: transform 0.15s, background-color 0.15s;" onmouseover="this.style.transform='scale(1.1)'; this.style.backgroundColor='#1d4ed8';" onmouseout="this.style.transform='scale(1)'; this.style.backgroundColor='#2563eb';">➕</button>
                     </div>
                 </td>
             </tr>

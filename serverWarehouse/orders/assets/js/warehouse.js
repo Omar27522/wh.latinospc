@@ -11,8 +11,8 @@ function getWarehouseState() {
     return __warehouseState;
 }
 
-// 1. Synchronously load all warehouse sub-modules in order
-(function loadWarehouseModules() {
+// 1. Ensure all warehouse sub-modules are loaded in order before initializing
+function loadWarehouseModules(callback) {
     const modules = [
         'assets/js/warehouse/warehouse_gate.js',
         'assets/js/warehouse/warehouse_form.js',
@@ -22,15 +22,29 @@ function getWarehouseState() {
         'assets/js/warehouse/warehouse_inventory.js'
     ];
 
+    let pending = 0;
     modules.forEach(src => {
         if (!document.querySelector(`script[src*="${src}"]`)) {
+            pending++;
             const script = document.createElement('script');
             script.src = src;
             script.async = false;
+            script.onload = () => {
+                pending--;
+                if (pending === 0 && typeof callback === 'function') callback();
+            };
+            script.onerror = () => {
+                pending--;
+                if (pending === 0 && typeof callback === 'function') callback();
+            };
             document.head.appendChild(script);
         }
     });
-})();
+
+    if (pending === 0 && typeof callback === 'function') {
+        callback();
+    }
+}
 
 // 2. Initialize warehouse components on DOMContentLoaded
 function initWarehouseApp() {
@@ -173,8 +187,10 @@ function initWarehouseApp() {
     if (typeof toggleGamingFields === 'function') toggleGamingFields();
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initWarehouseApp);
-} else {
-    initWarehouseApp();
-}
+loadWarehouseModules(() => {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWarehouseApp);
+    } else {
+        initWarehouseApp();
+    }
+});

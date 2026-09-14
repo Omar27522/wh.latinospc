@@ -1,0 +1,12 @@
+data/
+serverWarehouse/labels/.vscode/
+serverWarehouse/labels/db/
+serverWarehouse/labels/exports/
+serverWarehouse/labels/update.txt
+serverWarehouse/marketing/data
+serverWarehouse/marketing/assets/photo_bucket/
+serverWarehouse/orders/assets/exports
+serverWarehouse/orders/assets/location_photos
+serverWarehouse/tech/exports/
+serverWarehouse/.venv/
+serverWarehouse/.vscode/

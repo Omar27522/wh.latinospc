@@ -8,7 +8,8 @@
     const modules = [
         'assets/js/import_warehouse/import_warehouse_table.js',
         'assets/js/import_warehouse/import_warehouse_zone.js',
-        'assets/js/import_warehouse/import_warehouse_bulk.js'
+        'assets/js/import_warehouse/import_warehouse_bulk.js',
+        'assets/js/import_warehouse/import_warehouse_clipboard.js'
     ];
 
     modules.forEach(src => {
