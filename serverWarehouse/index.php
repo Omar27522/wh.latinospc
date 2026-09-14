@@ -110,7 +110,9 @@ if (!Company::isSetupComplete()) {
     <footer class="footer-note">
         <a href="<?= htmlspecialchars(Company::getUrl()) ?>" style="color: white; text-decoration: none;" target="_blank"><?= htmlspecialchars(Company::getName()) ?></a>.
         Inventory System &copy; <?php echo date('Y'); ?> | Powered by <?= htmlspecialchars(Company::getSystemName()) ?>
-        &nbsp;&bull;&nbsp; <a href="setup/index.php?reconfigure=1" style="color: #38bdf8; text-decoration: underline; font-size: 0.8rem;">⚙️ Setup Wizard</a>
+        <?php if (!Company::isSetupComplete() || (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true && ($_SESSION['role'] ?? '') === 'Admin')): ?>
+            &nbsp;&bull;&nbsp; <a href="setup/index.php?reconfigure=1" style="color: #38bdf8; text-decoration: underline; font-size: 0.8rem;">⚙️ Reconfigure System</a>
+        <?php endif; ?>
     </footer>
 
     <!-- Global Notifications Engine -->

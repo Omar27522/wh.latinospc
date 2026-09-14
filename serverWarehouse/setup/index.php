@@ -11,9 +11,66 @@ require_once __DIR__ . '/../core/Database.php';
 
 Security::init();
 
+/**
+ * Verifies an administrator password input against the active database record.
+ * Supports Perfect Paper Passwords (PPP) with or without salted key, standard bcrypt hashes,
+ * and handles whitespace variations.
+ */
+function verify_admin_password_input($input_password, $admin_record) {
+    if (!$admin_record || empty($input_password)) {
+        return false;
+    }
+    $clean_password = preg_replace('/\s+/', '', $input_password);
+    $verified = false;
+    if (!empty($admin_record['ppp_sequence_key'])) {
+        $verified = password_verify($input_password . $admin_record['ppp_sequence_key'], $admin_record['password'])
+                 || password_verify($clean_password . $admin_record['ppp_sequence_key'], $admin_record['password']);
+    }
+    if (!$verified) {
+        $verified = password_verify($input_password, $admin_record['password'])
+                 || password_verify($clean_password, $admin_record['password']);
+    }
+    return $verified;
+}
+
+// Fetch active administrator account from users.db
+$admin_record = null;
+$has_password_in_place = false;
+try {
+    $conn_u = Database::users();
+    $stmt_u = $conn_u->query("SELECT * FROM users WHERE username = 'admin' OR role = 'Admin' ORDER BY id ASC LIMIT 1");
+    if ($stmt_u && ($row = $stmt_u->fetch(PDO::FETCH_ASSOC))) {
+        $admin_record = $row;
+        if (!empty($row['password'])) {
+            $has_password_in_place = true;
+        }
+    }
+} catch (Exception $e) {}
+
+$is_already_setup = Company::isSetupComplete();
+$system_protected = $is_already_setup || $has_password_in_place;
+
+// Check reconfigure session unlock status (15-minute validity window)
+$is_unlocked = false;
+if (isset($_SESSION['setup_reconfigure_unlocked']) && (time() - (int)$_SESSION['setup_reconfigure_unlocked'] < 900)) {
+    $is_unlocked = true;
+}
+
+// Immediate lock action handler
+if (isset($_GET['lock']) || (isset($_POST['action']) && $_POST['action'] === 'lock_setup')) {
+    unset($_SESSION['setup_reconfigure_unlocked']);
+    header("Location: ../index.php");
+    exit();
+}
+
 // AJAX handler for generating PPP passcodes in setup wizard
 if (isset($_GET['action']) && $_GET['action'] === 'ajax_generate_ppp') {
     header('Content-Type: application/json');
+    if ($system_protected && !$is_unlocked) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Security challenge required. Setup wizard is locked.']);
+        exit();
+    }
     $seq_key = preg_replace('/[^a-fA-F0-9]/', '', trim($_GET['seq_key'] ?? ''));
     $length = (int)($_GET['length'] ?? 30);
     if (strlen($seq_key) < 16 || strlen($seq_key) > 64) {
@@ -27,10 +84,34 @@ if (isset($_GET['action']) && $_GET['action'] === 'ajax_generate_ppp') {
     exit();
 }
 
-$is_already_setup = Company::isSetupComplete();
 $reconfigure = isset($_GET['reconfigure']) && $_GET['reconfigure'] === '1';
 
-// If already set up and not reconfiguring, redirect to portal
+// Handle Reconfiguration Unlock Challenge
+$unlock_error = '';
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && $_POST['action'] === 'unlock_reconfigure') {
+    if (!Security::validate($_POST['csrf_token'] ?? '')) {
+        $unlock_error = 'Security session expired. Please refresh the page and try again.';
+    } else {
+        $submitted_pass = $_POST['admin_password'] ?? '';
+        if (empty($submitted_pass)) {
+            $unlock_error = 'Please enter your current administrator password to proceed.';
+        } elseif (verify_admin_password_input($submitted_pass, $admin_record)) {
+            // Password verified! Grant 15-minute access window and set session auth
+            $_SESSION['setup_reconfigure_unlocked'] = time();
+            $_SESSION['authenticated'] = true;
+            $_SESSION['username'] = $admin_record['username'] ?? 'admin';
+            $_SESSION['role'] = 'Admin';
+            $_SESSION['display_name'] = $admin_record['display_name'] ?: 'Administrator';
+            
+            header("Location: index.php?reconfigure=1");
+            exit();
+        } else {
+            $unlock_error = 'Access Denied: The administrator password entered is incorrect.';
+        }
+    }
+}
+
+// If already set up and not reconfiguring and no POST action, redirect to portal
 if ($is_already_setup && !$reconfigure && !isset($_POST['action'])) {
     header("Location: ../index.php");
     exit();
@@ -44,118 +125,132 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
     if (!Security::validate($_POST['csrf_token'] ?? '')) {
         $error = 'Security session expired. Please refresh and try again.';
     } else {
-        $company_name = trim($_POST['company_name'] ?? 'Latinos PC');
-        $system_name = trim($_POST['system_name'] ?? 'Latinos PC Warehouse Systems');
-        $company_url = trim($_POST['company_url'] ?? 'https://latinospc.com');
-        $support_email = trim($_POST['support_email'] ?? 'contact@latinospc.com');
-        $currency_symbol = trim($_POST['currency_symbol'] ?? '$');
-        $tagline = trim($_POST['tagline'] ?? 'Intelligent inventory management & rapid label logistics.');
-        
-        $hardware_lines = $_POST['hardware_lines'] ?? ['Laptops', 'Desktops', 'Monitors', 'Parts'];
-        $grading_standards = $_POST['grading_standards'] ?? ['A-Grade', 'B-Grade', 'C-Grade', 'Untested', 'Scrap'];
-        $diagnostics = $_POST['diagnostics'] ?? ['CPU', 'RAM', 'Storage', 'Battery', 'BIOS', 'OS'];
-        $label_preset = trim($_POST['label_preset'] ?? '4x6_thermal');
+        // Enforce password confirmation for changes on protected systems
+        if ($system_protected) {
+            $confirm_pass = $_POST['current_admin_password'] ?? '';
+            if (empty($confirm_pass) || !verify_admin_password_input($confirm_pass, $admin_record)) {
+                $error = 'Security Authorization Failed: You must confirm your current administrator password to commit changes. No modifications were saved.';
+            }
+        }
 
-        $auth_mode = trim($_POST['auth_mode'] ?? 'ppp'); // 'ppp', 'default_creds', or 'custom'
-        $admin_user = trim($_POST['admin_user'] ?? 'admin');
-        $admin_name = trim($_POST['admin_name'] ?? 'System Administrator');
-        $ppp_sequence_key = strtoupper(preg_replace('/[^a-fA-F0-9]/', '', trim($_POST['ppp_sequence_key'] ?? '')));
-        $ppp_row_index = (int)($_POST['ppp_row_index'] ?? 0);
-        $ppp_password_len = (int)($_POST['ppp_password_len'] ?? 30);
-        $selected_passcode = trim($_POST['selected_passcode'] ?? '');
-        $admin_pass = $_POST['admin_pass'] ?? '';
-        $admin_pass_confirm = $_POST['admin_pass_confirm'] ?? '';
+        if (empty($error)) {
+            $company_name = trim($_POST['company_name'] ?? 'Latinos PC');
+            $system_name = trim($_POST['system_name'] ?? 'Latinos PC Warehouse Systems');
+            $company_url = trim($_POST['company_url'] ?? 'https://latinospc.com');
+            $support_email = trim($_POST['support_email'] ?? 'contact@latinospc.com');
+            $currency_symbol = trim($_POST['currency_symbol'] ?? '$');
+            $tagline = trim($_POST['tagline'] ?? 'Intelligent inventory management & rapid label logistics.');
+            
+            $hardware_lines = $_POST['hardware_lines'] ?? ['Laptops', 'Desktops', 'Monitors', 'Parts'];
+            $grading_standards = $_POST['grading_standards'] ?? ['A-Grade', 'B-Grade', 'C-Grade', 'Untested', 'Scrap'];
+            $diagnostics = $_POST['diagnostics'] ?? ['CPU', 'RAM', 'Storage', 'Battery', 'BIOS', 'OS'];
+            $label_preset = trim($_POST['label_preset'] ?? '4x6_thermal');
 
-        if (empty($company_name)) {
-            $error = 'Company name is required.';
-        } elseif ($auth_mode === 'custom' && !$is_already_setup && (empty($admin_pass) || strlen($admin_pass) < 4)) {
-            $error = 'Please provide a secure administrator password of at least 4 characters.';
-        } elseif ($auth_mode === 'custom' && !$is_already_setup && ($admin_pass !== $admin_pass_confirm)) {
-            $error = 'Administrator passwords do not match.';
-        } elseif ($auth_mode === 'ppp' && (empty($ppp_sequence_key) || strlen($ppp_sequence_key) < 16 || strlen($ppp_sequence_key) > 64)) {
-            $error = 'Please generate or enter a valid hexadecimal PPP sequence key (32-hex 128-bit or 64-hex 256-bit).';
-        } elseif ($auth_mode === 'ppp' && ($ppp_row_index < 1 || $ppp_row_index > 25)) {
-            $error = 'Please click to select an authentication row (Row 1-25) from the passcard grid.';
-        } else {
-            try {
-                // 1. Commit Settings into warehouse.db
-                $settings_data = [
-                    'company_name' => $company_name,
-                    'system_name' => $system_name,
-                    'company_url' => $company_url,
-                    'support_email' => $support_email,
-                    'currency_symbol' => $currency_symbol,
-                    'tagline' => $tagline,
-                    'trade_description' => 'Used Computer, Laptop & Electronics Refurbishing',
-                    'hardware_lines' => json_encode($hardware_lines),
-                    'grading_standards' => json_encode($grading_standards),
-                    'diagnostics_checklist' => json_encode($diagnostics),
-                    'label_preset' => $label_preset,
-                    'setup_completed' => '1',
-                    'setup_timestamp' => date('Y-m-d H:i:s')
-                ];
-                Company::setMultiple($settings_data);
+            $auth_mode = trim($_POST['auth_mode'] ?? ($system_protected ? 'keep_existing' : 'ppp'));
+            $admin_user = trim($_POST['admin_user'] ?? 'admin');
+            $admin_name = trim($_POST['admin_name'] ?? 'System Administrator');
+            $ppp_sequence_key = strtoupper(preg_replace('/[^a-fA-F0-9]/', '', trim($_POST['ppp_sequence_key'] ?? '')));
+            $ppp_row_index = (int)($_POST['ppp_row_index'] ?? 0);
+            $ppp_password_len = (int)($_POST['ppp_password_len'] ?? 30);
+            $selected_passcode = trim($_POST['selected_passcode'] ?? '');
+            $admin_pass = $_POST['admin_pass'] ?? '';
+            $admin_pass_confirm = $_POST['admin_pass_confirm'] ?? '';
 
-                // 2. Commit Administrator Account into users.db
-                $conn_users = Database::users();
-                $conn_users->exec("CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT NOT NULL UNIQUE,
-                    password TEXT NOT NULL,
-                    role TEXT NOT NULL DEFAULT 'Admin',
-                    display_name TEXT DEFAULT '',
-                    ppp_sequence_key TEXT DEFAULT '',
-                    ppp_row_index INTEGER DEFAULT 0,
-                    ppp_password_len INTEGER DEFAULT 55
-                )");
-                $conn_users->exec("CREATE TABLE IF NOT EXISTS login_attempts (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ip_address TEXT NOT NULL,
-                    device_id TEXT NOT NULL,
-                    username TEXT NOT NULL,
-                    attempt_count INTEGER DEFAULT 0,
-                    last_attempt_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )");
-
-                if ($auth_mode === 'default_creds') {
-                    // Default Credentials: admin / 123
-                    $password_hash = password_hash('123', PASSWORD_BCRYPT);
-                    $stmt_u = $conn_users->prepare("INSERT INTO users (username, password, display_name, role, ppp_sequence_key, ppp_row_index, ppp_password_len) 
-                        VALUES (?, ?, ?, 'Admin', '', 0, 0)
-                        ON CONFLICT(username) DO UPDATE SET password = excluded.password, display_name = excluded.display_name, role = 'Admin', ppp_sequence_key = '', ppp_row_index = 0, ppp_password_len = 0");
-                    $stmt_u->execute([$admin_user, $password_hash, $admin_name]);
-                } elseif ($auth_mode === 'ppp') {
-                    // Perfect Paper Passwords
-                    if (empty($selected_passcode)) {
-                        $cell_len = (int)ceil($ppp_password_len / 5.0);
-                        $all_codes = Security::generate_ppp_passcodes($ppp_sequence_key, $cell_len);
-                        $row_offset = ($ppp_row_index - 1) * 5;
-                        $selected_passcode = implode('', array_slice($all_codes, $row_offset, 5));
-                    }
-                    $password_hash = password_hash($selected_passcode . $ppp_sequence_key, PASSWORD_BCRYPT);
-                    $stmt_u = $conn_users->prepare("INSERT INTO users (username, password, display_name, role, ppp_sequence_key, ppp_row_index, ppp_password_len) 
-                        VALUES (?, ?, ?, 'Admin', ?, ?, ?)
-                        ON CONFLICT(username) DO UPDATE SET password = excluded.password, display_name = excluded.display_name, role = 'Admin', ppp_sequence_key = excluded.ppp_sequence_key, ppp_row_index = excluded.ppp_row_index, ppp_password_len = excluded.ppp_password_len");
-                    $stmt_u->execute([$admin_user, $password_hash, $admin_name, $ppp_sequence_key, $ppp_row_index, $ppp_password_len]);
-                } elseif ($auth_mode === 'custom' && !empty($admin_pass)) {
-                    // Custom Password
-                    $password_hash = password_hash($admin_pass, PASSWORD_BCRYPT);
-                    $stmt_u = $conn_users->prepare("INSERT INTO users (username, password, display_name, role, ppp_sequence_key, ppp_row_index, ppp_password_len) 
-                        VALUES (?, ?, ?, 'Admin', '', 0, 0)
-                        ON CONFLICT(username) DO UPDATE SET password = excluded.password, display_name = excluded.display_name, role = 'Admin', ppp_sequence_key = '', ppp_row_index = 0, ppp_password_len = 0");
-                    $stmt_u->execute([$admin_user, $password_hash, $admin_name]);
-                }
-
-                // Clear login attempts to prevent lockouts
+            if (empty($company_name)) {
+                $error = 'Company name is required.';
+            } elseif ($auth_mode === 'custom' && !$is_already_setup && (empty($admin_pass) || strlen($admin_pass) < 4)) {
+                $error = 'Please provide a secure administrator password of at least 4 characters.';
+            } elseif ($auth_mode === 'custom' && !empty($admin_pass) && ($admin_pass !== $admin_pass_confirm)) {
+                $error = 'Administrator passwords do not match.';
+            } elseif ($auth_mode === 'ppp' && (empty($ppp_sequence_key) || strlen($ppp_sequence_key) < 16 || strlen($ppp_sequence_key) > 64)) {
+                $error = 'Please generate or enter a valid hexadecimal PPP sequence key (32-hex 128-bit or 64-hex 256-bit).';
+            } elseif ($auth_mode === 'ppp' && ($ppp_row_index < 1 || $ppp_row_index > 25)) {
+                $error = 'Please click to select an authentication row (Row 1-25) from the passcard grid.';
+            } else {
                 try {
-                    $conn_users->exec("DELETE FROM login_attempts");
-                } catch (Exception $eAttempts) {
-                    // Table might not exist or already cleared
-                }
+                    // 1. Commit Settings into warehouse.db
+                    $settings_data = [
+                        'company_name' => $company_name,
+                        'system_name' => $system_name,
+                        'company_url' => $company_url,
+                        'support_email' => $support_email,
+                        'currency_symbol' => $currency_symbol,
+                        'tagline' => $tagline,
+                        'trade_description' => 'Used Computer, Laptop & Electronics Refurbishing',
+                        'hardware_lines' => json_encode($hardware_lines),
+                        'grading_standards' => json_encode($grading_standards),
+                        'diagnostics_checklist' => json_encode($diagnostics),
+                        'label_preset' => $label_preset,
+                        'setup_completed' => '1',
+                        'setup_timestamp' => date('Y-m-d H:i:s')
+                    ];
+                    Company::setMultiple($settings_data);
 
-                $success = true;
-            } catch (Exception $e) {
-                $error = 'Failed to save configuration: ' . $e->getMessage();
+                    // 2. Commit Administrator Account into users.db
+                    $conn_users = Database::users();
+                    $conn_users->exec("CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT NOT NULL UNIQUE,
+                        password TEXT NOT NULL,
+                        role TEXT NOT NULL DEFAULT 'Admin',
+                        display_name TEXT DEFAULT '',
+                        ppp_sequence_key TEXT DEFAULT '',
+                        ppp_row_index INTEGER DEFAULT 0,
+                        ppp_password_len INTEGER DEFAULT 55
+                    )");
+                    $conn_users->exec("CREATE TABLE IF NOT EXISTS login_attempts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ip_address TEXT NOT NULL,
+                        device_id TEXT NOT NULL,
+                        username TEXT NOT NULL,
+                        attempt_count INTEGER DEFAULT 0,
+                        last_attempt_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )");
+
+                    if ($auth_mode === 'keep_existing') {
+                        // Preserve current password and authentication parameters
+                        $stmt_u = $conn_users->prepare("UPDATE users SET display_name = ? WHERE username = ?");
+                        $stmt_u->execute([$admin_name, $admin_user]);
+                    } elseif ($auth_mode === 'default_creds') {
+                        // Default Credentials: admin / 123
+                        $password_hash = password_hash('123', PASSWORD_BCRYPT);
+                        $stmt_u = $conn_users->prepare("INSERT INTO users (username, password, display_name, role, ppp_sequence_key, ppp_row_index, ppp_password_len) 
+                            VALUES (?, ?, ?, 'Admin', '', 0, 0)
+                            ON CONFLICT(username) DO UPDATE SET password = excluded.password, display_name = excluded.display_name, role = 'Admin', ppp_sequence_key = '', ppp_row_index = 0, ppp_password_len = 0");
+                        $stmt_u->execute([$admin_user, $password_hash, $admin_name]);
+                    } elseif ($auth_mode === 'ppp') {
+                        // Perfect Paper Passwords
+                        if (empty($selected_passcode)) {
+                            $cell_len = (int)ceil($ppp_password_len / 5.0);
+                            $all_codes = Security::generate_ppp_passcodes($ppp_sequence_key, $cell_len);
+                            $row_offset = ($ppp_row_index - 1) * 5;
+                            $selected_passcode = implode('', array_slice($all_codes, $row_offset, 5));
+                        }
+                        $password_hash = password_hash($selected_passcode . $ppp_sequence_key, PASSWORD_BCRYPT);
+                        $stmt_u = $conn_users->prepare("INSERT INTO users (username, password, display_name, role, ppp_sequence_key, ppp_row_index, ppp_password_len) 
+                            VALUES (?, ?, ?, 'Admin', ?, ?, ?)
+                            ON CONFLICT(username) DO UPDATE SET password = excluded.password, display_name = excluded.display_name, role = 'Admin', ppp_sequence_key = excluded.ppp_sequence_key, ppp_row_index = excluded.ppp_row_index, ppp_password_len = excluded.ppp_password_len");
+                        $stmt_u->execute([$admin_user, $password_hash, $admin_name, $ppp_sequence_key, $ppp_row_index, $ppp_password_len]);
+                    } elseif ($auth_mode === 'custom' && !empty($admin_pass)) {
+                        // Custom Password
+                        $password_hash = password_hash($admin_pass, PASSWORD_BCRYPT);
+                        $stmt_u = $conn_users->prepare("INSERT INTO users (username, password, display_name, role, ppp_sequence_key, ppp_row_index, ppp_password_len) 
+                            VALUES (?, ?, ?, 'Admin', '', 0, 0)
+                            ON CONFLICT(username) DO UPDATE SET password = excluded.password, display_name = excluded.display_name, role = 'Admin', ppp_sequence_key = '', ppp_row_index = 0, ppp_password_len = 0");
+                        $stmt_u->execute([$admin_user, $password_hash, $admin_name]);
+                    }
+
+                    // Clear login attempts to prevent lockouts
+                    try {
+                        $conn_users->exec("DELETE FROM login_attempts");
+                    } catch (Exception $eAttempts) {}
+
+                    // Re-lock the reconfigure session so subsequent visits require authentication
+                    unset($_SESSION['setup_reconfigure_unlocked']);
+                    $success = true;
+                } catch (Exception $e) {
+                    $error = 'Failed to save configuration: ' . $e->getMessage();
+                }
             }
         }
     }
@@ -170,22 +265,225 @@ $curr_currency = Company::getCurrency();
 $curr_tagline = Company::getTagline();
 
 // Existing admin account PPP defaults
-$existing_seq_key = '';
-$existing_row_index = 0;
-$existing_pass_len = 30;
-try {
-    $conn_u = Database::users();
-    $stmt_u = $conn_u->query("SELECT ppp_sequence_key, ppp_row_index, ppp_password_len FROM users WHERE username = 'admin' LIMIT 1");
-    if ($stmt_u && ($row = $stmt_u->fetch(PDO::FETCH_ASSOC))) {
-        $existing_seq_key = $row['ppp_sequence_key'] ?? '';
-        $existing_row_index = (int)($row['ppp_row_index'] ?? 0);
-        $existing_pass_len = (int)($row['ppp_password_len'] ?: 30);
-    }
-} catch (Exception $e) {}
+$existing_seq_key = $admin_record['ppp_sequence_key'] ?? '';
+$existing_row_index = (int)($admin_record['ppp_row_index'] ?? 0);
+$existing_pass_len = (int)($admin_record['ppp_password_len'] ?: 30);
 
 if (empty($existing_seq_key)) {
     $existing_seq_key = Security::generate_ppp_key();
 }
+
+// IF SYSTEM HAS A PASSWORD IN PLACE AND IS NOT UNLOCKED:
+// RENDER SECURITY WARNING AND PASSWORD CHALLENGE SCREEN AND EXIT!
+if ($system_protected && !$is_unlocked):
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Verification Required | <?= htmlspecialchars($curr_company) ?></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --primary-dark: #082d45;
+            --secondary-color: #218838;
+            --secondary-dark: #155724;
+            --bannerAndFooter-bg: #daedfb;
+            --bg-base: #041521;
+            --card-bg: rgba(8, 45, 69, 0.85);
+            --card-border: rgba(218, 237, 251, 0.14);
+            --accent-primary: #38bdf8;
+            --accent-gradient: linear-gradient(135deg, #0056b3 0%, #38bdf8 50%, #218838 100%);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --input-bg: rgba(4, 21, 33, 0.75);
+            --input-border: rgba(218, 237, 251, 0.16);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1rem;
+            position: relative;
+            overflow-x: hidden;
+            background: radial-gradient(circle at 50% 0%, rgba(0, 86, 179, 0.25) 0%, transparent 60%),
+                        linear-gradient(135deg, #041521 0%, #082d45 100%);
+        }
+        .glow-blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: 0;
+            opacity: 0.35;
+            pointer-events: none;
+        }
+        .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #dc2626; opacity: 0.2; }
+        .blob-2 { bottom: -10%; right: -10%; width: 500px; height: 500px; background: #0056b3; }
+        .wizard-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 580px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            border-radius: 24px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(239, 68, 68, 0.15);
+            overflow: hidden;
+            animation: fadeIn 0.4s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .alert-error {
+            background: rgba(239, 68, 68, 0.18);
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            color: #fca5a5;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-wizard {
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 700;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .btn-submit {
+            background: linear-gradient(135deg, #dc2626 0%, #ea580c 50%, #f59e0b 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35);
+        }
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+        }
+        .btn-prev {
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            border: 1px solid var(--card-border);
+        }
+        .btn-prev:hover {
+            background: rgba(255, 255, 255, 0.14);
+            color: white;
+        }
+        input[type="password"], input[type="text"] {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 10px;
+            color: white;
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+        input:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="glow-blob blob-1"></div>
+    <div class="glow-blob blob-2"></div>
+
+    <div class="wizard-container">
+        <!-- Prominent Red/Amber System Security Banner -->
+        <div style="background: linear-gradient(90deg, rgba(220, 38, 38, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%); border-bottom: 1px solid rgba(239, 68, 68, 0.4); padding: 12px 24px; text-align: center; color: #fca5a5; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;">
+            ⚠️ Active Production System &bull; Password Protected
+        </div>
+
+        <div style="padding: 2.5rem 2.5rem 1.25rem; text-align: center; border-bottom: 1px solid var(--card-border); background: rgba(255, 255, 255, 0.02);">
+            <div style="display: inline-flex; align-items: center; justify-content: center; width: 68px; height: 68px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.4); font-size: 2rem; margin-bottom: 12px; box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);">
+                🛡️
+            </div>
+            <h1 style="font-size: 1.85rem; font-weight: 800; background: linear-gradient(135deg, #fca5a5 0%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;">
+                Administrator Verification
+            </h1>
+            <p style="font-size: 0.92rem; color: var(--text-muted); max-width: 480px; margin: 0 auto; line-height: 1.5;">
+                Reconfiguration access is restricted to verified administrators to safeguard active database records and operational settings.
+            </p>
+        </div>
+
+        <div style="padding: 2rem 2.5rem 2.5rem;">
+            <?php if (!empty($unlock_error)): ?>
+                <div class="alert-error">
+                    <span style="font-size: 1.3rem;">🚫</span>
+                    <span><?= htmlspecialchars($unlock_error) ?></span>
+                </div>
+            <?php endif; ?>
+
+            <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 14px; padding: 1.2rem; margin-bottom: 1.75rem; font-size: 0.84rem; color: #cbd5e1; line-height: 1.5;">
+                <div style="display: flex; align-items: center; gap: 8px; color: #fbbf24; font-weight: 700; margin-bottom: 6px;">
+                    <span>⚠️</span>
+                    <span>System Warning: Active Warehouse Environment</span>
+                </div>
+                This installation has a password in place and is live. Modifying system identity, trade presets, or authentication parameters directly impacts active orders, technician diagnostics, and staff logins.
+            </div>
+
+            <form method="POST" action="index.php?reconfigure=1">
+                <?= UI::csrf_field() ?>
+                <input type="hidden" name="action" value="unlock_reconfigure">
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label for="admin_password" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin-bottom: 6px;">
+                        <span>Current Administrator Password *</span>
+                        <span style="font-size: 0.72rem; color: var(--accent-primary); font-weight: 500;">(Password or PPP row passcode)</span>
+                    </label>
+                    <div style="position: relative;">
+                        <input type="password" id="admin_password" name="admin_password" required autofocus placeholder="Enter administrator password..." style="padding-right: 44px;">
+                        <button type="button" onclick="togglePassVisibility('admin_password')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;" title="Toggle visibility">
+                            👁️
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button type="submit" class="btn-wizard btn-submit" style="width: 100%; justify-content: center; padding: 0.95rem; font-size: 0.95rem;">
+                        🔓 Verify Password &amp; Unlock Wizard
+                    </button>
+                    <a href="../index.php" class="btn-wizard btn-prev" style="width: 100%; justify-content: center; text-decoration: none; padding: 0.8rem; font-size: 0.85rem; text-align: center;">
+                        &larr; Cancel &amp; Return to Warehouse Portal
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function togglePassVisibility(id) {
+            const input = document.getElementById(id);
+            if (!input) return;
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+    </script>
+</body>
+</html>
+<?php
+    exit();
+endif;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -785,12 +1083,25 @@ if (empty($existing_seq_key)) {
 
     <div class="wizard-container">
 
+        <?php if ($system_protected && $is_unlocked && !$success): ?>
+            <!-- Persistent Live Reconfiguration Warning Banner -->
+            <div style="background: rgba(245, 158, 11, 0.15); border-bottom: 1px solid rgba(245, 158, 11, 0.35); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px; color: #fde68a; font-size: 0.88rem; font-weight: 600;">
+                    <span style="font-size: 1.2rem;">⚠️</span>
+                    <span><strong>LIVE RECONFIGURATION ACTIVE:</strong> You are modifying active production settings. Changes will update live operations and admin access.</span>
+                </div>
+                <a href="index.php?lock=1" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 6px 14px; font-size: 0.8rem; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    🔒 Lock &amp; Exit
+                </a>
+            </div>
+        <?php endif; ?>
+
         <?php if ($success): ?>
             <!-- Success Screen -->
             <div class="wizard-header">
-                <div class="badge-step">🚀 Initialization Complete</div>
-                <h1 class="wizard-title"><?= htmlspecialchars($company_name) ?> is Ready!</h1>
-                <p class="wizard-subtitle">Your warehouse management suite is configured and secured. All databases are isolated outside HTTP scope.</p>
+                <div class="badge-step" style="background: rgba(33, 136, 56, 0.2); color: #4ade80; border: 1px solid rgba(33, 136, 56, 0.4);">✓ <?= $reconfigure ? 'Reconfiguration Applied' : '🚀 Initialization Complete' ?></div>
+                <h1 class="wizard-title"><?= htmlspecialchars($company_name) ?> <?= $reconfigure ? 'Updated!' : 'is Ready!' ?></h1>
+                <p class="wizard-subtitle">Your warehouse management suite configuration has been safely updated in production. All databases are isolated outside HTTP scope.</p>
             </div>
 
             <div class="wizard-body success-box">
@@ -987,7 +1298,7 @@ if (empty($existing_seq_key)) {
                         </div>
 
                         <!-- Hidden Authentication State Inputs -->
-                        <input type="hidden" name="auth_mode" id="auth_mode_input" value="ppp">
+                        <input type="hidden" name="auth_mode" id="auth_mode_input" value="<?= $system_protected ? 'keep_existing' : 'ppp' ?>">
                         <input type="hidden" name="ppp_sequence_key" id="ppp_sequence_key_input" value="<?= htmlspecialchars($existing_seq_key) ?>">
                         <input type="hidden" name="ppp_row_index" id="ppp_row_index_input" value="<?= $existing_row_index ?>">
                         <input type="hidden" name="ppp_password_len" id="ppp_password_len_input" value="<?= $existing_pass_len ?>">
@@ -996,8 +1307,17 @@ if (empty($existing_seq_key)) {
                         <!-- Authentication Mode Selector Tabs -->
                         <div style="margin-bottom: 1.5rem;">
                             <label style="display: block; margin-bottom: 8px;">Choose Authentication Method</label>
-                            <div class="auth-mode-grid">
-                                <div class="auth-mode-card active" id="mode-card-ppp" onclick="switchAuthMode('ppp')">
+                            <div class="auth-mode-grid" style="<?= $system_protected ? 'grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));' : '' ?>">
+                                <?php if ($system_protected): ?>
+                                    <div class="auth-mode-card active" id="mode-card-keep" onclick="switchAuthMode('keep_existing')">
+                                        <div class="auth-mode-icon">🛡️</div>
+                                        <div class="auth-mode-title">Keep Current Password</div>
+                                        <div class="auth-mode-badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">Preserve (Active)</div>
+                                        <div class="auth-mode-desc">Retain active admin credentials and passcard without modification.</div>
+                                    </div>
+                                <?php endif; ?>
+
+                                <div class="auth-mode-card <?= !$system_protected ? 'active' : '' ?>" id="mode-card-ppp" onclick="switchAuthMode('ppp')">
                                     <div class="auth-mode-icon">🔑</div>
                                     <div class="auth-mode-title">Perfect Paper Passwords</div>
                                     <div class="auth-mode-badge badge-recom">Recommended</div>
@@ -1020,8 +1340,22 @@ if (empty($existing_seq_key)) {
                             </div>
                         </div>
 
+                        <?php if ($system_protected): ?>
+                            <!-- PANEL 0: KEEP CURRENT CREDENTIALS -->
+                            <div id="auth-panel-keep" class="auth-panel active" style="text-align: center; padding: 2rem 1.5rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 14px;">
+                                <div style="font-size: 2.5rem; margin-bottom: 8px;">🛡️</div>
+                                <h3 style="font-size: 1.15rem; margin-bottom: 6px; color: white;">Current Credentials Will Be Maintained</h3>
+                                <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 480px; margin: 0 auto 1.2rem;">
+                                    Your active administrator password, passcard row index, and sequence keys will remain untouched. Only business identity, trade presets, and label standards will be updated.
+                                </p>
+                                <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(33, 136, 56, 0.15); border: 1px solid rgba(33, 136, 56, 0.3); border-radius: 8px; padding: 8px 16px; color: #4ade80; font-size: 0.85rem; font-weight: 600;">
+                                    ✓ Active Master Password Maintained
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
                         <!-- PANEL 1: PERFECT PAPER PASSWORDS (PPP) -->
-                        <div id="auth-panel-ppp" class="auth-panel active">
+                        <div id="auth-panel-ppp" class="auth-panel <?= !$system_protected ? 'active' : '' ?>" style="<?= $system_protected ? 'display: none;' : '' ?>">
                             <!-- Top Toolbar: Length Range & 64-Hex Key -->
                             <div class="ppp-control-box">
                                 <div style="flex: 1; min-width: 140px;">
@@ -1207,6 +1541,24 @@ if (empty($existing_seq_key)) {
                                 <span style="color: #10b981; font-weight: 700;">✓ Active (Protected outside HTTP)</span>
                             </div>
                         </div>
+
+                        <?php if ($system_protected): ?>
+                            <div style="margin-top: 1.5rem; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 14px; padding: 1.25rem;">
+                                <label for="current_admin_password" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; font-weight: 700; color: #fca5a5; margin-bottom: 6px;">
+                                    <span>🔒 Authorize Changes: Current Admin Password *</span>
+                                    <span style="font-size: 0.72rem; color: #f87171; font-weight: 600;">Mandatory Confirmation</span>
+                                </label>
+                                <p style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;">
+                                    To safeguard live production databases against unauthorized modifications, confirm your <strong>current administrator password</strong> (or active PPP passcode) to commit changes.
+                                </p>
+                                <div style="position: relative;">
+                                    <input type="password" id="current_admin_password" name="current_admin_password" placeholder="Enter current admin password to commit changes..." required style="padding-right: 44px; font-size: 0.9rem;">
+                                    <button type="button" onclick="togglePassVisibility('current_admin_password')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;" title="Toggle visibility">
+                                        👁️
+                                    </button>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                 </div>
@@ -1219,7 +1571,7 @@ if (empty($existing_seq_key)) {
                         Continue &rarr;
                     </button>
                     <button type="submit" class="btn-wizard btn-submit" id="btnSubmit" style="display: none;">
-                        🚀 Initialize &amp; Launch System
+                        <?= $reconfigure ? '💾 Save &amp; Apply Reconfiguration' : '🚀 Initialize &amp; Launch System' ?>
                     </button>
                 </div>
             </form>
@@ -1309,7 +1661,12 @@ if (empty($existing_seq_key)) {
             document.querySelectorAll('.auth-mode-card').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.auth-panel').forEach(p => p.style.display = 'none');
 
-            if (mode === 'ppp') {
+            if (mode === 'keep_existing') {
+                const cardKeep = document.getElementById('mode-card-keep');
+                const panelKeep = document.getElementById('auth-panel-keep');
+                if (cardKeep) cardKeep.classList.add('active');
+                if (panelKeep) panelKeep.style.display = 'block';
+            } else if (mode === 'ppp') {
                 document.getElementById('mode-card-ppp').classList.add('active');
                 document.getElementById('auth-panel-ppp').style.display = 'block';
                 if (pppPasscodes.length === 0) loadPPPGrid();
@@ -1659,6 +2016,12 @@ if (empty($existing_seq_key)) {
             viewWindow.focus();
         }
 
+        function togglePassVisibility(id) {
+            const input = document.getElementById(id);
+            if (!input) return;
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
         function validateStep(step) {
             if (step === 1) {
                 const name = document.getElementById('company_name').value.trim();
@@ -1669,7 +2032,9 @@ if (empty($existing_seq_key)) {
                 }
             } else if (step === 3) {
                 const authMode = document.getElementById('auth_mode_input').value;
-                if (authMode === 'custom') {
+                if (authMode === 'keep_existing') {
+                    return true;
+                } else if (authMode === 'custom') {
                     const pass = document.getElementById('admin_pass').value;
                     const passConfirm = document.getElementById('admin_pass_confirm').value;
                     if (!pass || pass.length < 4) {
@@ -1695,6 +2060,13 @@ if (empty($existing_seq_key)) {
                 } else if (authMode === 'default_creds') {
                     return true;
                 }
+            } else if (step === 4) {
+                const confirmInput = document.getElementById('current_admin_password');
+                if (confirmInput && !confirmInput.value.trim()) {
+                    alert('Please enter your current administrator password to authorize and commit changes.');
+                    confirmInput.focus();
+                    return false;
+                }
             }
             return true;
         }
@@ -1708,7 +2080,9 @@ if (empty($existing_seq_key)) {
             const authMode = document.getElementById('auth_mode_input').value;
             const revAuthMode = document.getElementById('rev-auth-mode');
             if (revAuthMode) {
-                if (authMode === 'ppp') {
+                if (authMode === 'keep_existing') {
+                    revAuthMode.innerHTML = `<strong style="color:#38bdf8;">🛡️ Keep Existing Active Credentials</strong>`;
+                } else if (authMode === 'ppp') {
                     const rowIdx = document.getElementById('ppp_row_index_input').value || 1;
                     revAuthMode.innerHTML = `<strong style="color:#38bdf8;">🔑 Perfect Paper Passwords (Row ${String(rowIdx).padStart(2,'0')})</strong>`;
                 } else if (authMode === 'default_creds') {
@@ -1721,6 +2095,10 @@ if (empty($existing_seq_key)) {
 
         // Check for direct jump to step in URL (e.g. ?reconfigure=1 3 or ?step=3 or #step-3)
         document.addEventListener('DOMContentLoaded', () => {
+            const initialMode = document.getElementById('auth_mode_input').value;
+            if (initialMode === 'keep_existing') {
+                switchAuthMode('keep_existing');
+            }
             const urlParams = new URLSearchParams(window.location.search);
             let targetStep = 1;
             if (urlParams.has('step')) {
