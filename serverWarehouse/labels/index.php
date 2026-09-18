@@ -5,7 +5,7 @@ require_once 'includes/header.php';
 ?>
 
 <!-- Module Specific CSS -->
-<link rel="stylesheet" href="assets/css/dashboard.css?v=<?= filemtime('assets/css/dashboard.css') ?>">
+<link rel="stylesheet" href="assets/css/dashboard.css?v=<?= file_exists(__DIR__ . '/assets/css/dashboard.css') ? filemtime(__DIR__ . '/assets/css/dashboard.css') : '1.0' ?>">
 
 <?php
 // Fetch basic stats

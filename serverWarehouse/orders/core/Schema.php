@@ -218,21 +218,18 @@ class Schema {
                 continue;
             }
 
-            // 2. Session verification check
-            if (Database::isSchemaVerified($db_name, $table)) {
-                self::$memory_verified[$db_name][$table] = true;
-                continue;
-            }
-
             // Always CREATE TABLE IF NOT EXISTS (safe no-op when table exists)
             $conn->exec($sql);
 
-            // Always run migrations — idempotent PRAGMA checks mean no harm.
+            // Always run migrations — idempotent PRAGMA checks mean no harm, bypasses session cache
             self::runMigrations($conn, $db_name, $table);
 
-            // --- Initial Data Seeding (once per session) ---
-            self::seed($conn, $db_name, $table);
-            Database::markSchemaVerified($db_name, $table);
+            // 2. Session verification check for initial seeding
+            if (!Database::isSchemaVerified($db_name, $table)) {
+                self::seed($conn, $db_name, $table);
+                Database::markSchemaVerified($db_name, $table);
+            }
+
             self::$memory_verified[$db_name][$table] = true;
         }
     }
