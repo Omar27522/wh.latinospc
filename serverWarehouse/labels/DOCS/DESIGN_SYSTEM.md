@@ -1,7 +1,7 @@
 # Design System & UI Guidelines
 
 ## 1. Overview
-The Latinos PC Label APP avoids heavy CSS frameworks like Tailwind or Bootstrap. Everything is styled through a global `style.css` file. The goal of this UI is to look incredibly clean, professional, and accessible.
+The IQA Metal Label APP avoids heavy CSS frameworks like Tailwind or Bootstrap. Everything is styled through a global `style.css` file. The goal of this UI is to look incredibly clean, professional, and accessible.
 
 To maintain consistency throughout the app, future developers and agents must adhere to the design decisions and CSS variables outlined below.
 

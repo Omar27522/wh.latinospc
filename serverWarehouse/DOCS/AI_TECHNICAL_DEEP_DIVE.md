@@ -1,4 +1,4 @@
-# 🧠 AI Technical Deep Dive & Handover 9/5/2026 10:52 PM
+# 🧠 AI Technical Deep Dive & Handover 9/16/2026 11:26 AM
 
 This document serves as a "shortcut" for AI agents to understand the underlying logic of the IQA Warehouse Systems without reading every single file.
 
@@ -37,11 +37,45 @@ Every module has a `schema_guard.php` or `Schema::runMigrations()` setup.
 *   **Method**: Uses `str_replace()` on a `.fodt` (Flat XML) template.
 *   **Benefit**: No `ZipArchive` dependency. Files are portable and work immediately with LibreOffice.
 
-### 4. iOS / Warehouse Optimization
+### 4. Modular Media Engine & Date-Partitioned Storage (`MediaManager.php`)
+*   **Ingest-Time WebP Conversion**: Photos uploaded from cameras or file inputs are converted directly to WebP on ingestion. The engine generates a web-optimized image (`1920px` max, ~200-300KB) and a thumbnail (`160x160px` square center crop, ~8-15KB). Raw images are safely archived.
+*   **Zero Zip-on-Demand Lag**: Because images are WebP compressed upon ingest, the system avoids heavy runtime zip compression.
+*   **`YYYY/MM/` Partitioning**: Files are stored in dated directories (`assets/location_photos/2026/09/`) to prevent single-directory inode bottlenecks.
+*   **Cascading Deletion**: Deleting a photo cascades across original, optimized, and thumbnail files on disk and removes the corresponding record from `location_photos`.
+
+### 5. iOS / Warehouse Optimization
 *   **Touch Targets**: Buttons are strictly `48px` minimum height.
 *   **Colors**: High-contrast light themes for operational modules; vibrant Teal/Lime for Marketing.
 
 ## ⚠️ Recent Critical Fixes & Features (September 2026)
+*   **Modular Media & Live Camera System (September 16, 2026)**:
+    *   **Live Viewfinder & Camera Switching (`camera_uploader.js` & `camera_modal.php`)**: Implemented HTML5 `getUserMedia` streaming with dynamic front/environment camera switching, shutter snap flash effect, freeze-frame preview/retake workflow, and tabbed drag-and-drop file upload zone.
+    *   **Universal REST APIs (`orders/api/media_upload.php` & `media_delete.php`)**: Handles multipart file uploads and Base64 canvas snapshots. Includes foreign key pre-validation on `locations` table to avoid SQLite constraint violations. Deletion API cascades across physical disk files and `location_photos` rows with AJAX UI card removal.
+    *   **Cold Storage Partitioning (`BackupManager.php`)**: Added `exportMonthlyArchive()` and `getMonthlyArchiveBreakdown()` for creating `.tar` backups of specific monthly photo partitions.
+*   **Warehouse Location Status Deduplication (September 16, 2026)**:
+    *   **Global Status Isolation**: Fixed `$all_statuses` query in `orders/pages/warehouse.php` to strictly query global statuses (`location_code IS NULL OR location_code = '' OR location_code = 'GLOBAL'`) with `GROUP BY name`, preventing custom shelf statuses from polluting the global dropdown.
+    *   **Grouped Color Subquery**: Replaced raw join with `(SELECT name, color FROM location_statuses GROUP BY name)` to prevent duplicate location cards.
+    *   **Dynamic Shelf Custom Status Handling**: Updated `warehouse_modals.js` (`openRenameModal()`) to dynamically inject the shelf's custom status into the dropdown if missing, and clean it up upon modal closure.
+*   **Shelf Audit & Sync UX Overhaul (September 16, 2026)**:
+    *   Removed redundant bulk "Purge Selected (Record as Sold)" button from the "Shelf Audit & Sync" modal (`inventory_modal.php`).
+    *   Replaced text "Sold / Purge" button with compact trash icon (`🗑️`).
+    *   Changed tab icon from `🗑️` to `🔄` to emphasize reconciliation over deletion.
+*   **Trends Center & Financial Analytics Engine (`/orders/index.php?view=trends`)**:
+    *   **Model Demand Velocity Table Ordering**: Enforced column order: `Rank/Customer` (0, `num/str`), `Brand` (1, `str`), `Model` (2, `str`), `Avg Price` (3, `num`), `Details` (4, `str`), `Latest Sold/Order` (5, `date/str`), `Units Sold` (6, `num`).
+    *   **Financial Graphs (Tab 2 Pricing Curves)**: Restored Chart.js rendering for **Average Selling Price (ASP) Timeline** and **Monthly Gross Realized Valuation**. Time-series points sort chronologically (left-to-right) with financial tooltips showing Realized ASP, Invoiced Units, Gross Revenue, and MoM variance.
+    *   **Valuation & ASP Dual-Axis Combo Chart Mode (Phase 3)**: Added interactive view mode switcher between `🔀 Split View` (side-by-side ASP and Gross Valuation cards) and `📊 Dual-Axis Combo` (correlating gross valuation on the left axis against weighted ASP on the right axis with synchronized multi-metric hover tooltips). Mode preference persists in `sessionStorage` (`pricing_chart_view_mode`).
+    *   **Live Matrix Micro-Feedback & Cell Glow (Phase 3)**: Added `showMatrixSaveToast()` and `.cell-saved-pulse` in `trends_modals.js` and `trends.css` providing immediate visual feedback upon inline edits to B2B Untested Matrix and Tested Market Reference tables.
+    *   **Safe Chart.js Lifecycle**: Added chart destruction guards (`Chart.getChart()`, `aspChartInstance`, `valuationChartInstance`, `comboPricingChartInstance`) to eliminate canvas collision errors when switching tabs or toggling dark/light themes.
+    *   **Tab State & Filter Persistence**: Preserved active tab selection in `sessionStorage` (`trends_active_tab`) and the URL (`?view=trends&tab=...`). Changing the date filter triggers `applyTrendsFilter()` to retain the active tab without resetting.
+    *   **Executive Accounting KPIs & Ledger**: Added financial summary cards (Gross Valuation, Weighted ASP, Volume Realized, Peak Month, MoM Velocity) and a settlement ledger with MoM growth badges, period revenue share %, and reconciliation totals footer (`<tfoot>`).
+    *   **1-Click CSV Exports**: Added UTF-8 BOM formatted exports for Financial Ledger (`exportFinancialLedgerCSV()`), Inventory Demand Velocity (`exportDemandVelocityCSV()`), and Leads CRM (`exportLeadsCSV()`).
+    *   **Customer CRM Profile & Order History Intelligence Dialog (Phase 4)**: Added `#customerProfileModal` in `trends_modals.php` and `openCustomerProfileModal()` in `trends_modals.js`. Querying `index.php?view=trends&action=get_customer_profile` in `trends_actions.php`, it dynamically bridges `customers.db` and `orders.db` to calculate lifetime spend, liquidated units, completed orders, tenure dates, CRM contact information, and recent transaction manifests with instant 1-click manifest modal preview links and direct CRM jump actions (`View in CRM` and `New Order Batch`).
+    *   **Cross-Module Intelligence Links (Phase 4)**: Interactive company name anchors (`.customer-profile-link`) integrated into Tab 4 (*Top B2B Clients by Volume*), Tab 1 (*Model Demand Buyer Names*), and CPU Pricing modal recent sales lists.
+    *   **Global Empty-State Polish (Phase 4)**: Added formatted zero-result placeholders across table-level (`.no-results-row`) and tab-level (`.global-no-results`) search filters with custom iconography and single-click filter reset (`clearSearchInput()`).
+*   **Leads & CRM Follow-Up Optimization (`/orders/index.php?view=leads`)**:
+    *   **Universal Column Sorting**: Enabled sorting across all 9 data columns (`sortLeadsTable(colIndex, type)`) with raw sort values embedded in `data-sort-val`.
+    *   **Follow-Up Urgency Tagging**: Added automated urgency status badges in the `Next Call` column: 🔴 **Overdue** (past date), 🟡 **Due Today** (scheduled today), 🟢 **Upcoming** (future date).
+    *   **Real-Time Search Keyword Highlighting**: Enabled multi-term search highlighting across company names, internal notes, contact channels, and status badges via `highlightLeadNodeWords()`.
 *   **Warehouse Stock Spreadsheet & Multi-Header Sorting (`/marketing/?page=model_templates`)**:
     *   **Live Database Integration**: Embedded live records from `db/warehouse.db` (`inventory` table, 1,211 items) into an interactive spreadsheet view using text box cells (`<input type="text" class="cell-input">`) with Excel-style keyboard navigation (<kbd>↑</kbd>, <kbd>↓</kbd>, <kbd>Enter</kbd>).
     *   **Column Sequencing**: Structured column layout with **QTY** placed immediately adjacent to **Sector** (`Sector` ➔ `Qty` ➔ `Location` ➔ `Brand` ➔ `Model` ➔ `CPU/Series` ➔ `RAM` ➔ `Storage` ➔ `Condition` ➔ `Notes` ➔ `Price` ➔ `Action`).

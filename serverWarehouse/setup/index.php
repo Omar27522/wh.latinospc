@@ -1,6 +1,6 @@
 <?php
 /**
- * Latinos PC Warehouse Systems - System Setup & Trade Configuration Wizard
+ * IQA Metal Warehouse Systems - System Setup & Trade Configuration Wizard
  * Tailored for Computer Refurbishing, IT Asset Disposition (ITAD), and Electronics Warehouses.
  */
 
@@ -16,7 +16,8 @@ Security::init();
  * Supports Perfect Paper Passwords (PPP) with or without salted key, standard bcrypt hashes,
  * and handles whitespace variations.
  */
-function verify_admin_password_input($input_password, $admin_record) {
+function verify_admin_password_input($input_password, $admin_record)
+{
     if (!$admin_record || empty($input_password)) {
         return false;
     }
@@ -24,11 +25,11 @@ function verify_admin_password_input($input_password, $admin_record) {
     $verified = false;
     if (!empty($admin_record['ppp_sequence_key'])) {
         $verified = password_verify($input_password . $admin_record['ppp_sequence_key'], $admin_record['password'])
-                 || password_verify($clean_password . $admin_record['ppp_sequence_key'], $admin_record['password']);
+            || password_verify($clean_password . $admin_record['ppp_sequence_key'], $admin_record['password']);
     }
     if (!$verified) {
         $verified = password_verify($input_password, $admin_record['password'])
-                 || password_verify($clean_password, $admin_record['password']);
+            || password_verify($clean_password, $admin_record['password']);
     }
     return $verified;
 }
@@ -45,14 +46,15 @@ try {
             $has_password_in_place = true;
         }
     }
-} catch (Exception $e) {}
+} catch (Exception $e) {
+}
 
 $is_already_setup = Company::isSetupComplete();
 $system_protected = $is_already_setup || $has_password_in_place;
 
 // Check reconfigure session unlock status (15-minute validity window)
 $is_unlocked = false;
-if (isset($_SESSION['setup_reconfigure_unlocked']) && (time() - (int)$_SESSION['setup_reconfigure_unlocked'] < 900)) {
+if (isset($_SESSION['setup_reconfigure_unlocked']) && (time() - (int) $_SESSION['setup_reconfigure_unlocked'] < 900)) {
     $is_unlocked = true;
 }
 
@@ -72,13 +74,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'ajax_generate_ppp') {
         exit();
     }
     $seq_key = preg_replace('/[^a-fA-F0-9]/', '', trim($_GET['seq_key'] ?? ''));
-    $length = (int)($_GET['length'] ?? 30);
+    $length = (int) ($_GET['length'] ?? 30);
     if (strlen($seq_key) < 16 || strlen($seq_key) > 64) {
         echo json_encode(['success' => false, 'error' => 'Invalid sequence key (must be 16 to 64 hex characters)']);
         exit();
     }
 
-    $cell_len = (int)ceil($length / 5.0);
+    $cell_len = (int) ceil($length / 5.0);
     $passcodes = Security::generate_ppp_passcodes($seq_key, $cell_len);
     echo json_encode(['success' => true, 'passcodes' => $passcodes]);
     exit();
@@ -102,7 +104,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
             $_SESSION['username'] = $admin_record['username'] ?? 'admin';
             $_SESSION['role'] = 'Admin';
             $_SESSION['display_name'] = $admin_record['display_name'] ?: 'Administrator';
-            
+
             header("Location: index.php?reconfigure=1");
             exit();
         } else {
@@ -134,13 +136,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
         }
 
         if (empty($error)) {
-            $company_name = trim($_POST['company_name'] ?? 'Latinos PC');
-            $system_name = trim($_POST['system_name'] ?? 'Latinos PC Warehouse Systems');
+            $company_name = trim($_POST['company_name'] ?? 'IQA Metal');
+            $system_name = trim($_POST['system_name'] ?? 'IQA Metal Warehouse Systems');
             $company_url = trim($_POST['company_url'] ?? 'https://latinospc.com');
             $support_email = trim($_POST['support_email'] ?? 'contact@latinospc.com');
             $currency_symbol = trim($_POST['currency_symbol'] ?? '$');
             $tagline = trim($_POST['tagline'] ?? 'Intelligent inventory management & rapid label logistics.');
-            
+
             $hardware_lines = $_POST['hardware_lines'] ?? ['Laptops', 'Desktops', 'Monitors', 'Parts'];
             $grading_standards = $_POST['grading_standards'] ?? ['A-Grade', 'B-Grade', 'C-Grade', 'Untested', 'Scrap'];
             $diagnostics = $_POST['diagnostics'] ?? ['CPU', 'RAM', 'Storage', 'Battery', 'BIOS', 'OS'];
@@ -150,8 +152,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
             $admin_user = trim($_POST['admin_user'] ?? 'admin');
             $admin_name = trim($_POST['admin_name'] ?? 'System Administrator');
             $ppp_sequence_key = strtoupper(preg_replace('/[^a-fA-F0-9]/', '', trim($_POST['ppp_sequence_key'] ?? '')));
-            $ppp_row_index = (int)($_POST['ppp_row_index'] ?? 0);
-            $ppp_password_len = (int)($_POST['ppp_password_len'] ?? 30);
+            $ppp_row_index = (int) ($_POST['ppp_row_index'] ?? 0);
+            $ppp_password_len = (int) ($_POST['ppp_password_len'] ?? 30);
             $selected_passcode = trim($_POST['selected_passcode'] ?? '');
             $admin_pass = $_POST['admin_pass'] ?? '';
             $admin_pass_confirm = $_POST['admin_pass_confirm'] ?? '';
@@ -221,7 +223,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                     } elseif ($auth_mode === 'ppp') {
                         // Perfect Paper Passwords
                         if (empty($selected_passcode)) {
-                            $cell_len = (int)ceil($ppp_password_len / 5.0);
+                            $cell_len = (int) ceil($ppp_password_len / 5.0);
                             $all_codes = Security::generate_ppp_passcodes($ppp_sequence_key, $cell_len);
                             $row_offset = ($ppp_row_index - 1) * 5;
                             $selected_passcode = implode('', array_slice($all_codes, $row_offset, 5));
@@ -243,7 +245,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
                     // Clear login attempts to prevent lockouts
                     try {
                         $conn_users->exec("DELETE FROM login_attempts");
-                    } catch (Exception $eAttempts) {}
+                    } catch (Exception $eAttempts) {
+                    }
 
                     // Re-lock the reconfigure session so subsequent visits require authentication
                     unset($_SESSION['setup_reconfigure_unlocked']);
@@ -266,8 +269,8 @@ $curr_tagline = Company::getTagline();
 
 // Existing admin account PPP defaults
 $existing_seq_key = $admin_record['ppp_sequence_key'] ?? '';
-$existing_row_index = (int)($admin_record['ppp_row_index'] ?? 0);
-$existing_pass_len = (int)($admin_record['ppp_password_len'] ?: 30);
+$existing_row_index = (int) ($admin_record['ppp_row_index'] ?? 0);
+$existing_pass_len = (int) ($admin_record['ppp_password_len'] ?: 30);
 
 if (empty($existing_seq_key)) {
     $existing_seq_key = Security::generate_ppp_key();
@@ -276,233 +279,302 @@ if (empty($existing_seq_key)) {
 // IF SYSTEM HAS A PASSWORD IN PLACE AND IS NOT UNLOCKED:
 // RENDER SECURITY WARNING AND PASSWORD CHALLENGE SCREEN AND EXIT!
 if ($system_protected && !$is_unlocked):
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Verification Required | <?= htmlspecialchars($curr_company) ?></title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/components.css">
-    <style>
-        :root {
-            --primary-color: #0056b3;
-            --primary-dark: #082d45;
-            --secondary-color: #218838;
-            --secondary-dark: #155724;
-            --bannerAndFooter-bg: #daedfb;
-            --bg-base: #041521;
-            --card-bg: rgba(8, 45, 69, 0.85);
-            --card-border: rgba(218, 237, 251, 0.14);
-            --accent-primary: #38bdf8;
-            --accent-gradient: linear-gradient(135deg, #0056b3 0%, #38bdf8 50%, #218838 100%);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --input-bg: rgba(4, 21, 33, 0.75);
-            --input-border: rgba(218, 237, 251, 0.16);
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            background-color: var(--bg-base);
-            color: var(--text-main);
-            font-family: 'Outfit', sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 2rem 1rem;
-            position: relative;
-            overflow-x: hidden;
-            background: radial-gradient(circle at 50% 0%, rgba(0, 86, 179, 0.25) 0%, transparent 60%),
-                        linear-gradient(135deg, #041521 0%, #082d45 100%);
-        }
-        .glow-blob {
-            position: fixed;
-            border-radius: 50%;
-            filter: blur(120px);
-            z-index: 0;
-            opacity: 0.35;
-            pointer-events: none;
-        }
-        .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #dc2626; opacity: 0.2; }
-        .blob-2 { bottom: -10%; right: -10%; width: 500px; height: 500px; background: #0056b3; }
-        .wizard-container {
-            position: relative;
-            z-index: 1;
-            width: 100%;
-            max-width: 580px;
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(239, 68, 68, 0.35);
-            border-radius: 24px;
-            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(239, 68, 68, 0.15);
-            overflow: hidden;
-            animation: fadeIn 0.4s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(16px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .alert-error {
-            background: rgba(239, 68, 68, 0.18);
-            border: 1px solid rgba(239, 68, 68, 0.45);
-            color: #fca5a5;
-            padding: 1rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .btn-wizard {
-            border: none;
-            cursor: pointer;
-            font-family: inherit;
-            font-weight: 700;
-            border-radius: 12px;
-            display: inline-flex;
-            align-items: center;
-            transition: all 0.2s;
-        }
-        .btn-submit {
-            background: linear-gradient(135deg, #dc2626 0%, #ea580c 50%, #f59e0b 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35);
-        }
-        .btn-submit:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
-        }
-        .btn-prev {
-            background: rgba(255, 255, 255, 0.08);
-            color: #cbd5e1;
-            border: 1px solid var(--card-border);
-        }
-        .btn-prev:hover {
-            background: rgba(255, 255, 255, 0.14);
-            color: white;
-        }
-        input[type="password"], input[type="text"] {
-            width: 100%;
-            padding: 0.85rem 1rem;
-            background: var(--input-bg);
-            border: 1px solid var(--input-border);
-            border-radius: 10px;
-            color: white;
-            font-family: inherit;
-            font-size: 0.95rem;
-            outline: none;
-            transition: all 0.2s;
-        }
-        input:focus {
-            border-color: #38bdf8;
-            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
-        }
-    </style>
-</head>
-<body>
-    <div class="glow-blob blob-1"></div>
-    <div class="glow-blob blob-2"></div>
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
 
-    <div class="wizard-container">
-        <!-- Prominent Red/Amber System Security Banner -->
-        <div style="background: linear-gradient(90deg, rgba(220, 38, 38, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%); border-bottom: 1px solid rgba(239, 68, 68, 0.4); padding: 12px 24px; text-align: center; color: #fca5a5; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;">
-            ⚠️ Active Production System &bull; Password Protected
-        </div>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Security Verification Required | <?= htmlspecialchars($curr_company) ?></title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+            rel="stylesheet">
+        <link rel="stylesheet" href="../assets/css/components.css">
+        <style>
+            :root {
+                --primary-color: #0056b3;
+                --primary-dark: #082d45;
+                --secondary-color: #218838;
+                --secondary-dark: #155724;
+                --bannerAndFooter-bg: #daedfb;
+                --bg-base: #041521;
+                --card-bg: rgba(8, 45, 69, 0.85);
+                --card-border: rgba(218, 237, 251, 0.14);
+                --accent-primary: #38bdf8;
+                --accent-gradient: linear-gradient(135deg, #0056b3 0%, #38bdf8 50%, #218838 100%);
+                --text-main: #f8fafc;
+                --text-muted: #94a3b8;
+                --input-bg: rgba(4, 21, 33, 0.75);
+                --input-border: rgba(218, 237, 251, 0.16);
+            }
 
-        <div style="padding: 2.5rem 2.5rem 1.25rem; text-align: center; border-bottom: 1px solid var(--card-border); background: rgba(255, 255, 255, 0.02);">
-            <div style="display: inline-flex; align-items: center; justify-content: center; width: 68px; height: 68px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.4); font-size: 2rem; margin-bottom: 12px; box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);">
-                🛡️
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                background-color: var(--bg-base);
+                color: var(--text-main);
+                font-family: 'Outfit', sans-serif;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                padding: 2rem 1rem;
+                position: relative;
+                overflow-x: hidden;
+                background: radial-gradient(circle at 50% 0%, rgba(0, 86, 179, 0.25) 0%, transparent 60%),
+                    linear-gradient(135deg, #041521 0%, #082d45 100%);
+            }
+
+            .glow-blob {
+                position: fixed;
+                border-radius: 50%;
+                filter: blur(120px);
+                z-index: 0;
+                opacity: 0.35;
+                pointer-events: none;
+            }
+
+            .blob-1 {
+                top: -10%;
+                left: -10%;
+                width: 500px;
+                height: 500px;
+                background: #dc2626;
+                opacity: 0.2;
+            }
+
+            .blob-2 {
+                bottom: -10%;
+                right: -10%;
+                width: 500px;
+                height: 500px;
+                background: #0056b3;
+            }
+
+            .wizard-container {
+                position: relative;
+                z-index: 1;
+                width: 100%;
+                max-width: 580px;
+                background: var(--card-bg);
+                backdrop-filter: blur(20px);
+                border: 1px solid rgba(239, 68, 68, 0.35);
+                border-radius: 24px;
+                box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(239, 68, 68, 0.15);
+                overflow: hidden;
+                animation: fadeIn 0.4s ease-out;
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(16px);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .alert-error {
+                background: rgba(239, 68, 68, 0.18);
+                border: 1px solid rgba(239, 68, 68, 0.45);
+                color: #fca5a5;
+                padding: 1rem;
+                border-radius: 12px;
+                margin-bottom: 1.5rem;
+                font-size: 0.9rem;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .btn-wizard {
+                border: none;
+                cursor: pointer;
+                font-family: inherit;
+                font-weight: 700;
+                border-radius: 12px;
+                display: inline-flex;
+                align-items: center;
+                transition: all 0.2s;
+            }
+
+            .btn-submit {
+                background: linear-gradient(135deg, #dc2626 0%, #ea580c 50%, #f59e0b 100%);
+                color: white;
+                box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35);
+            }
+
+            .btn-submit:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+            }
+
+            .btn-prev {
+                background: rgba(255, 255, 255, 0.08);
+                color: #cbd5e1;
+                border: 1px solid var(--card-border);
+            }
+
+            .btn-prev:hover {
+                background: rgba(255, 255, 255, 0.14);
+                color: white;
+            }
+
+            input[type="password"],
+            input[type="text"] {
+                width: 100%;
+                padding: 0.85rem 1rem;
+                background: var(--input-bg);
+                border: 1px solid var(--input-border);
+                border-radius: 10px;
+                color: white;
+                font-family: inherit;
+                font-size: 0.95rem;
+                outline: none;
+                transition: all 0.2s;
+            }
+
+            input:focus {
+                border-color: #38bdf8;
+                box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="glow-blob blob-1"></div>
+        <div class="glow-blob blob-2"></div>
+
+        <div class="wizard-container">
+            <!-- Prominent Red/Amber System Security Banner -->
+            <div
+                style="background: linear-gradient(90deg, rgba(220, 38, 38, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%); border-bottom: 1px solid rgba(239, 68, 68, 0.4); padding: 12px 24px; text-align: center; color: #fca5a5; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;">
+                ⚠️ Active Production System &bull; Password Protected
             </div>
-            <h1 style="font-size: 1.85rem; font-weight: 800; background: linear-gradient(135deg, #fca5a5 0%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;">
-                Administrator Verification
-            </h1>
-            <p style="font-size: 0.92rem; color: var(--text-muted); max-width: 480px; margin: 0 auto; line-height: 1.5;">
-                Reconfiguration access is restricted to verified administrators to safeguard active database records and operational settings.
-            </p>
-        </div>
 
-        <div style="padding: 2rem 2.5rem 2.5rem;">
-            <?php if (!empty($unlock_error)): ?>
-                <div class="alert-error">
-                    <span style="font-size: 1.3rem;">🚫</span>
-                    <span><?= htmlspecialchars($unlock_error) ?></span>
+            <div
+                style="padding: 2.5rem 2.5rem 1.25rem; text-align: center; border-bottom: 1px solid var(--card-border); background: rgba(255, 255, 255, 0.02);">
+                <div
+                    style="display: inline-flex; align-items: center; justify-content: center; width: 68px; height: 68px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.4); font-size: 2rem; margin-bottom: 12px; box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);">
+                    🛡️
                 </div>
-            <?php endif; ?>
-
-            <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 14px; padding: 1.2rem; margin-bottom: 1.75rem; font-size: 0.84rem; color: #cbd5e1; line-height: 1.5;">
-                <div style="display: flex; align-items: center; gap: 8px; color: #fbbf24; font-weight: 700; margin-bottom: 6px;">
-                    <span>⚠️</span>
-                    <span>System Warning: Active Warehouse Environment</span>
-                </div>
-                This installation has a password in place and is live. Modifying system identity, trade presets, or authentication parameters directly impacts active orders, technician diagnostics, and staff logins.
+                <h1
+                    style="font-size: 1.85rem; font-weight: 800; background: linear-gradient(135deg, #fca5a5 0%, #fbbf24 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;">
+                    Administrator Verification
+                </h1>
+                <p
+                    style="font-size: 0.92rem; color: var(--text-muted); max-width: 480px; margin: 0 auto; line-height: 1.5;">
+                    Reconfiguration access is restricted to verified administrators to safeguard active database records and
+                    operational settings.
+                </p>
             </div>
 
-            <form method="POST" action="index.php?reconfigure=1">
-                <?= UI::csrf_field() ?>
-                <input type="hidden" name="action" value="unlock_reconfigure">
-
-                <div style="margin-bottom: 1.5rem;">
-                    <label for="admin_password" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin-bottom: 6px;">
-                        <span>Current Administrator Password *</span>
-                        <span style="font-size: 0.72rem; color: var(--accent-primary); font-weight: 500;">(Password or PPP row passcode)</span>
-                    </label>
-                    <div style="position: relative;">
-                        <input type="password" id="admin_password" name="admin_password" required autofocus placeholder="Enter administrator password..." style="padding-right: 44px;">
-                        <button type="button" onclick="togglePassVisibility('admin_password')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;" title="Toggle visibility">
-                            👁️
-                        </button>
+            <div style="padding: 2rem 2.5rem 2.5rem;">
+                <?php if (!empty($unlock_error)): ?>
+                    <div class="alert-error">
+                        <span style="font-size: 1.3rem;">🚫</span>
+                        <span><?= htmlspecialchars($unlock_error) ?></span>
                     </div>
+                <?php endif; ?>
+
+                <div
+                    style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 14px; padding: 1.2rem; margin-bottom: 1.75rem; font-size: 0.84rem; color: #cbd5e1; line-height: 1.5;">
+                    <div
+                        style="display: flex; align-items: center; gap: 8px; color: #fbbf24; font-weight: 700; margin-bottom: 6px;">
+                        <span>⚠️</span>
+                        <span>System Warning: Active Warehouse Environment</span>
+                    </div>
+                    This installation has a password in place and is live. Modifying system identity, trade presets, or
+                    authentication parameters directly impacts active orders, technician diagnostics, and staff logins.
                 </div>
 
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button type="submit" class="btn-wizard btn-submit" style="width: 100%; justify-content: center; padding: 0.95rem; font-size: 0.95rem;">
-                        🔓 Verify Password &amp; Unlock Wizard
-                    </button>
-                    <a href="../index.php" class="btn-wizard btn-prev" style="width: 100%; justify-content: center; text-decoration: none; padding: 0.8rem; font-size: 0.85rem; text-align: center;">
-                        &larr; Cancel &amp; Return to Warehouse Portal
-                    </a>
-                </div>
-            </form>
+                <form method="POST" action="index.php?reconfigure=1">
+                    <?= UI::csrf_field() ?>
+                    <input type="hidden" name="action" value="unlock_reconfigure">
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label for="admin_password"
+                            style="display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin-bottom: 6px;">
+                            <span>Current Administrator Password *</span>
+                            <span style="font-size: 0.72rem; color: var(--accent-primary); font-weight: 500;">(Password or
+                                PPP row passcode)</span>
+                        </label>
+                        <div style="position: relative;">
+                            <input type="password" id="admin_password" name="admin_password" required autofocus
+                                placeholder="Enter administrator password..." style="padding-right: 44px;">
+                            <button type="button" onclick="togglePassVisibility('admin_password')"
+                                style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;"
+                                title="Toggle visibility">
+                                👁️
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button type="submit" class="btn-wizard btn-submit"
+                            style="width: 100%; justify-content: center; padding: 0.95rem; font-size: 0.95rem;">
+                            🔓 Verify Password &amp; Unlock Wizard
+                        </button>
+                        <a href="../index.php" class="btn-wizard btn-prev"
+                            style="width: 100%; justify-content: center; text-decoration: none; padding: 0.8rem; font-size: 0.85rem; text-align: center;">
+                            &larr; Cancel &amp; Return to Warehouse Portal
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
 
-    <script>
-        function togglePassVisibility(id) {
-            const input = document.getElementById(id);
-            if (!input) return;
-            input.type = input.type === 'password' ? 'text' : 'password';
-        }
-    </script>
-</body>
-</html>
-<?php
+        <script>
+            function togglePassVisibility(id) {
+                const input = document.getElementById(id);
+                if (!input) return;
+                input.type = input.type === 'password' ? 'text' : 'password';
+            }
+        </script>
+    </body>
+
+    </html>
+    <?php
     exit();
 endif;
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Warehouse Systems Setup Wizard | <?= htmlspecialchars($curr_company) ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/components.css">
     <style>
         :root {
             /* LatinosPC Official Color Palette */
-            --primary-color: #0056b3;     /* Royal Cobalt Blue */
-            --primary-dark: #082d45;      /* Deep Navy Blue */
-            --secondary-color: #218838;   /* Vibrant Green */
-            --secondary-dark: #155724;    /* Forest Green */
-            --bannerAndFooter-bg: #daedfb;/* Sky Slate */
+            --primary-color: #0056b3;
+            /* Royal Cobalt Blue */
+            --primary-dark: #082d45;
+            /* Deep Navy Blue */
+            --secondary-color: #218838;
+            /* Vibrant Green */
+            --secondary-dark: #155724;
+            /* Forest Green */
+            --bannerAndFooter-bg: #daedfb;
+            /* Sky Slate */
 
             --bg-base: #041521;
             --card-bg: rgba(8, 45, 69, 0.85);
@@ -516,7 +588,12 @@ endif;
             --success: #218838;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             background-color: var(--bg-base);
             color: var(--text-main);
@@ -530,7 +607,7 @@ endif;
             position: relative;
             overflow-x: hidden;
             background: radial-gradient(circle at 50% 0%, rgba(0, 86, 179, 0.25) 0%, transparent 60%),
-                        linear-gradient(135deg, #041521 0%, #082d45 100%);
+                linear-gradient(135deg, #041521 0%, #082d45 100%);
         }
 
         /* Ambient Glow Blobs */
@@ -542,8 +619,22 @@ endif;
             opacity: 0.35;
             pointer-events: none;
         }
-        .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #0056b3; }
-        .blob-2 { bottom: -10%; right: -10%; width: 500px; height: 500px; background: #218838; }
+
+        .blob-1 {
+            top: -10%;
+            left: -10%;
+            width: 500px;
+            height: 500px;
+            background: #0056b3;
+        }
+
+        .blob-2 {
+            bottom: -10%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: #218838;
+        }
 
         .wizard-container {
             position: relative;
@@ -560,8 +651,15 @@ endif;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(16px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .wizard-header {
@@ -718,7 +816,9 @@ endif;
             transition: all 0.2s;
         }
 
-        input:focus, select:focus, textarea:focus {
+        input:focus,
+        select:focus,
+        textarea:focus {
             border-color: var(--accent-primary);
             box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
         }
@@ -788,17 +888,21 @@ endif;
             background: rgba(255, 255, 255, 0.08);
             color: #cbd5e1;
         }
+
         .btn-prev:hover {
             background: rgba(255, 255, 255, 0.15);
             color: white;
         }
 
-        .btn-next, .btn-submit {
+        .btn-next,
+        .btn-submit {
             background: var(--accent-gradient);
             color: white;
             box-shadow: 0 4px 15px rgba(56, 189, 248, 0.35);
         }
-        .btn-next:hover, .btn-submit:hover {
+
+        .btn-next:hover,
+        .btn-submit:hover {
             transform: translateY(-1px);
             box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
         }
@@ -826,8 +930,13 @@ endif;
         }
 
         @keyframes bounce {
-            from { transform: translateY(0); }
-            to { transform: translateY(-8px); }
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(-8px);
+            }
         }
 
         .launch-grid {
@@ -851,7 +960,7 @@ endif;
         .launch-card:hover {
             border-color: var(--accent-primary);
             transform: translateY(-4px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
 
         .launch-icon {
@@ -876,6 +985,7 @@ endif;
             grid-template-columns: repeat(3, 1fr);
             gap: 12px;
         }
+
         .auth-mode-card {
             background: rgba(15, 23, 42, 0.6);
             border: 1px solid var(--card-border);
@@ -887,25 +997,30 @@ endif;
             position: relative;
             user-select: none;
         }
+
         .auth-mode-card:hover {
             border-color: rgba(56, 189, 248, 0.4);
             background: rgba(15, 23, 42, 0.9);
         }
+
         .auth-mode-card.active {
             border-color: var(--accent-primary);
             background: rgba(8, 45, 69, 0.7);
             box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
         }
+
         .auth-mode-icon {
             font-size: 1.5rem;
             margin-bottom: 4px;
         }
+
         .auth-mode-title {
             font-size: 0.85rem;
             font-weight: 700;
             color: white;
             margin-bottom: 4px;
         }
+
         .auth-mode-badge {
             display: inline-block;
             font-size: 0.65rem;
@@ -915,9 +1030,25 @@ endif;
             border-radius: 100px;
             margin-bottom: 6px;
         }
-        .badge-recom { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
-        .badge-fast { background: rgba(33, 136, 56, 0.2); color: #4ade80; border: 1px solid rgba(33, 136, 56, 0.4); }
-        .badge-bypass { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+
+        .badge-recom {
+            background: rgba(56, 189, 248, 0.2);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+        }
+
+        .badge-fast {
+            background: rgba(33, 136, 56, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(33, 136, 56, 0.4);
+        }
+
+        .badge-bypass {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+
         .auth-mode-desc {
             font-size: 0.72rem;
             color: var(--text-muted);
@@ -935,6 +1066,7 @@ endif;
             flex-wrap: wrap;
             align-items: center;
         }
+
         .btn-tool {
             background: rgba(255, 255, 255, 0.08);
             color: white;
@@ -946,9 +1078,11 @@ endif;
             cursor: pointer;
             transition: all 0.2s;
         }
+
         .btn-tool:hover {
             background: rgba(255, 255, 255, 0.16);
         }
+
         .ppp-selection-banner {
             background: rgba(8, 45, 69, 0.8);
             border: 1px solid rgba(56, 189, 248, 0.4);
@@ -957,6 +1091,7 @@ endif;
             margin-top: 12px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
+
         .ppp-qr-box {
             display: flex;
             flex-direction: column;
@@ -969,16 +1104,19 @@ endif;
             transition: all 0.2s;
             height: fit-content;
         }
+
         .ppp-qr-box:hover {
             transform: scale(1.03);
             box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
         }
+
         .ppp-qr-box img {
             width: 100px;
             height: 100px;
             display: block;
             border-radius: 6px;
         }
+
         .ppp-table-container {
             max-height: 220px;
             overflow-y: auto;
@@ -986,6 +1124,7 @@ endif;
             border-radius: 10px;
             background: rgba(15, 23, 42, 0.8);
         }
+
         .ppp-grid-table {
             width: 100%;
             border-collapse: collapse;
@@ -993,6 +1132,7 @@ endif;
             font-size: 0.75rem;
             text-align: center;
         }
+
         .ppp-grid-table thead th {
             position: sticky;
             top: 0;
@@ -1003,23 +1143,28 @@ endif;
             border-bottom: 1px solid var(--card-border);
             z-index: 1;
         }
+
         .ppp-grid-table tbody tr {
             cursor: pointer;
             transition: background 0.15s;
             border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         }
+
         .ppp-grid-table tbody tr:hover {
             background: rgba(56, 189, 248, 0.1);
         }
+
         .ppp-grid-table tbody tr.active-row {
             background: rgba(56, 189, 248, 0.25) !important;
             outline: 1px solid #38bdf8;
         }
+
         .ppp-grid-table td {
             padding: 6px 4px;
             color: #e2e8f0;
             word-break: break-all;
         }
+
         .ppp-grid-table td.row-label {
             font-weight: 800;
             color: #94a3b8;
@@ -1036,6 +1181,7 @@ endif;
             border: 1px solid var(--card-border);
             border-radius: 14px;
         }
+
         .credentials-badge-box {
             display: inline-flex;
             align-items: center;
@@ -1045,22 +1191,26 @@ endif;
             border-radius: 10px;
             padding: 10px 20px;
         }
+
         .cred-item {
             display: flex;
             flex-direction: column;
             text-align: left;
         }
+
         .cred-label {
             font-size: 0.65rem;
             color: #94a3b8;
             text-transform: uppercase;
             font-weight: 700;
         }
+
         .cred-val {
             font-size: 0.95rem;
             color: white;
             font-family: monospace;
         }
+
         .cred-divider {
             width: 1px;
             height: 25px;
@@ -1068,14 +1218,29 @@ endif;
         }
 
         @media (max-width: 680px) {
-            .form-grid { grid-template-columns: 1fr; }
-            .form-group.col-span-2 { grid-column: span 1; }
-            .launch-grid { grid-template-columns: 1fr; }
-            .auth-mode-grid { grid-template-columns: 1fr; }
-            .step-item span.label-text { display: none; }
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-group.col-span-2 {
+                grid-column: span 1;
+            }
+
+            .launch-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .auth-mode-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .step-item span.label-text {
+                display: none;
+            }
         }
     </style>
 </head>
+
 <body>
 
     <div class="glow-blob blob-1"></div>
@@ -1085,12 +1250,16 @@ endif;
 
         <?php if ($system_protected && $is_unlocked && !$success): ?>
             <!-- Persistent Live Reconfiguration Warning Banner -->
-            <div style="background: rgba(245, 158, 11, 0.15); border-bottom: 1px solid rgba(245, 158, 11, 0.35); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <div style="display: flex; align-items: center; gap: 10px; color: #fde68a; font-size: 0.88rem; font-weight: 600;">
+            <div
+                style="background: rgba(245, 158, 11, 0.15); border-bottom: 1px solid rgba(245, 158, 11, 0.35); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div
+                    style="display: flex; align-items: center; gap: 10px; color: #fde68a; font-size: 0.88rem; font-weight: 600;">
                     <span style="font-size: 1.2rem;">⚠️</span>
-                    <span><strong>LIVE RECONFIGURATION ACTIVE:</strong> You are modifying active production settings. Changes will update live operations and admin access.</span>
+                    <span><strong>LIVE RECONFIGURATION ACTIVE:</strong> You are modifying active production settings.
+                        Changes will update live operations and admin access.</span>
                 </div>
-                <a href="index.php?lock=1" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 6px 14px; font-size: 0.8rem; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <a href="index.php?lock=1"
+                    style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 6px 14px; font-size: 0.8rem; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
                     🔒 Lock &amp; Exit
                 </a>
             </div>
@@ -1099,15 +1268,20 @@ endif;
         <?php if ($success): ?>
             <!-- Success Screen -->
             <div class="wizard-header">
-                <div class="badge-step" style="background: rgba(33, 136, 56, 0.2); color: #4ade80; border: 1px solid rgba(33, 136, 56, 0.4);">✓ <?= $reconfigure ? 'Reconfiguration Applied' : '🚀 Initialization Complete' ?></div>
-                <h1 class="wizard-title"><?= htmlspecialchars($company_name) ?> <?= $reconfigure ? 'Updated!' : 'is Ready!' ?></h1>
-                <p class="wizard-subtitle">Your warehouse management suite configuration has been safely updated in production. All databases are isolated outside HTTP scope.</p>
+                <div class="badge-step"
+                    style="background: rgba(33, 136, 56, 0.2); color: #4ade80; border: 1px solid rgba(33, 136, 56, 0.4);">✓
+                    <?= $reconfigure ? 'Reconfiguration Applied' : '🚀 Initialization Complete' ?></div>
+                <h1 class="wizard-title"><?= htmlspecialchars($company_name) ?>
+                    <?= $reconfigure ? 'Updated!' : 'is Ready!' ?></h1>
+                <p class="wizard-subtitle">Your warehouse management suite configuration has been safely updated in
+                    production. All databases are isolated outside HTTP scope.</p>
             </div>
 
             <div class="wizard-body success-box">
                 <div class="success-icon">✨</div>
                 <h2 style="font-size: 1.4rem; margin-bottom: 0.5rem;">Welcome to your new operations hub</h2>
-                <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto;">Company profile, electronics refurbishing presets, and administrator credentials have been stored successfully.</p>
+                <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto;">Company profile, electronics
+                    refurbishing presets, and administrator credentials have been stored successfully.</p>
 
                 <div class="launch-grid">
                     <a href="../tech/index.php" class="launch-card">
@@ -1139,7 +1313,8 @@ endif;
             <div class="wizard-header">
                 <div class="badge-step">Setup &amp; Brand Wizard</div>
                 <h1 class="wizard-title"><?= $reconfigure ? 'System Configuration' : 'Welcome to Warehouse Systems' ?></h1>
-                <p class="wizard-subtitle">Tailor the warehouse suite specifically to your business identity, electronics refurbishing standards, and security preferences.</p>
+                <p class="wizard-subtitle">Tailor the warehouse suite specifically to your business identity, electronics
+                    refurbishing standards, and security preferences.</p>
             </div>
 
             <!-- Progress Nav -->
@@ -1176,47 +1351,59 @@ endif;
                     <!-- STEP 1: COMPANY PROFILE -->
                     <div class="step-content active" id="step-1">
                         <h2 style="font-size: 1.25rem; margin-bottom: 6px;">🏢 Company Profile &amp; Identity</h2>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">Set your business brand details. These will appear in the portal, document headers, manifests, and receipts.</p>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">Set your business
+                            brand details. These will appear in the portal, document headers, manifests, and receipts.</p>
 
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="company_name">Company Name *</label>
-                                <input type="text" id="company_name" name="company_name" value="<?= htmlspecialchars($curr_company) ?>" placeholder="e.g. Latinos PC" required>
+                                <input type="text" id="company_name" name="company_name"
+                                    value="<?= htmlspecialchars($curr_company) ?>" placeholder="e.g. IQA Metal" required>
                                 <span class="input-hint">Your registered trade or store brand name.</span>
                             </div>
 
                             <div class="form-group">
                                 <label for="system_name">System Portal Title *</label>
-                                <input type="text" id="system_name" name="system_name" value="<?= htmlspecialchars($curr_system) ?>" placeholder="e.g. Latinos PC Warehouse Systems" required>
+                                <input type="text" id="system_name" name="system_name"
+                                    value="<?= htmlspecialchars($curr_system) ?>"
+                                    placeholder="e.g. IQA Metal Warehouse Systems" required>
                                 <span class="input-hint">Displays in the browser tab and portal header.</span>
                             </div>
 
                             <div class="form-group">
                                 <label for="company_url">Official Website / Domain</label>
-                                <input type="url" id="company_url" name="company_url" value="<?= htmlspecialchars($curr_url) ?>" placeholder="https://latinospc.com">
+                                <input type="url" id="company_url" name="company_url"
+                                    value="<?= htmlspecialchars($curr_url) ?>" placeholder="https://latinospc.com">
                                 <span class="input-hint">Linked in footer notes and manifest signatures.</span>
                             </div>
 
                             <div class="form-group">
                                 <label for="support_email">Contact / Operations Email</label>
-                                <input type="email" id="support_email" name="support_email" value="<?= htmlspecialchars($curr_email) ?>" placeholder="sales@latinospc.com">
+                                <input type="email" id="support_email" name="support_email"
+                                    value="<?= htmlspecialchars($curr_email) ?>" placeholder="sales@latinospc.com">
                                 <span class="input-hint">Receives system alerts and customer inquiries.</span>
                             </div>
 
                             <div class="form-group">
                                 <label for="currency_symbol">Currency Symbol</label>
                                 <select id="currency_symbol" name="currency_symbol">
-                                    <option value="$" <?= $curr_currency === '$' ? 'selected' : '' ?>>$ (USD - US Dollar)</option>
-                                    <option value="C$" <?= $curr_currency === 'C$' ? 'selected' : '' ?>>C$ (CAD - Canadian Dollar)</option>
-                                    <option value="MX$" <?= $curr_currency === 'MX$' ? 'selected' : '' ?>>MX$ (MXN - Mexican Peso)</option>
+                                    <option value="$" <?= $curr_currency === '$' ? 'selected' : '' ?>>$ (USD - US Dollar)
+                                    </option>
+                                    <option value="C$" <?= $curr_currency === 'C$' ? 'selected' : '' ?>>C$ (CAD - Canadian
+                                        Dollar)</option>
+                                    <option value="MX$" <?= $curr_currency === 'MX$' ? 'selected' : '' ?>>MX$ (MXN - Mexican
+                                        Peso)</option>
                                     <option value="€" <?= $curr_currency === '€' ? 'selected' : '' ?>>€ (EUR - Euro)</option>
-                                    <option value="£" <?= $curr_currency === '£' ? 'selected' : '' ?>>£ (GBP - British Pound)</option>
+                                    <option value="£" <?= $curr_currency === '£' ? 'selected' : '' ?>>£ (GBP - British Pound)
+                                    </option>
                                 </select>
                             </div>
 
                             <div class="form-group">
                                 <label for="tagline">Operations Tagline</label>
-                                <input type="text" id="tagline" name="tagline" value="<?= htmlspecialchars($curr_tagline) ?>" placeholder="e.g. Intelligent inventory management & rapid label logistics.">
+                                <input type="text" id="tagline" name="tagline"
+                                    value="<?= htmlspecialchars($curr_tagline) ?>"
+                                    placeholder="e.g. Intelligent inventory management & rapid label logistics.">
                                 <span class="input-hint">Short mission description on the landing page.</span>
                             </div>
                         </div>
@@ -1224,8 +1411,10 @@ endif;
 
                     <!-- STEP 2: TRADE PRESETS -->
                     <div class="step-content" id="step-2">
-                        <h2 style="font-size: 1.25rem; margin-bottom: 6px;">💻 Used Computer &amp; Electronics Trade Presets</h2>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">Tailor diagnostic checklists, inventory types, and grading standards to your refurbishing workflow.</p>
+                        <h2 style="font-size: 1.25rem; margin-bottom: 6px;">💻 Used Computer &amp; Electronics Trade Presets
+                        </h2>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">Tailor diagnostic
+                            checklists, inventory types, and grading standards to your refurbishing workflow.</p>
 
                         <div class="form-group" style="margin-bottom: 1.5rem;">
                             <label>Primary Hardware Inventory Lines</label>
@@ -1233,9 +1422,10 @@ endif;
                                 <?php
                                 $lines = ['Laptops & Notebooks', 'Desktop PCs', 'Gaming PCs', 'Enterprise Servers', 'Monitors & Displays', 'RAM & Storage (SSDs)', 'Smartphones & Tablets', 'E-Waste / Scrap'];
                                 foreach ($lines as $line):
-                                ?>
+                                    ?>
                                     <label class="preset-checkbox">
-                                        <input type="checkbox" name="hardware_lines[]" value="<?= htmlspecialchars($line) ?>" checked>
+                                        <input type="checkbox" name="hardware_lines[]" value="<?= htmlspecialchars($line) ?>"
+                                            checked>
                                         <span class="preset-label"><?= htmlspecialchars($line) ?></span>
                                     </label>
                                 <?php endforeach; ?>
@@ -1248,9 +1438,10 @@ endif;
                                 <?php
                                 $grades = ['A-Grade (Like New)', 'B-Grade (Minor Scuffs)', 'C-Grade (Heavy Wear)', 'Untested (As-Is)', 'Parts / Repair Only', 'E-Waste / Scrap'];
                                 foreach ($grades as $grade):
-                                ?>
+                                    ?>
                                     <label class="preset-checkbox">
-                                        <input type="checkbox" name="grading_standards[]" value="<?= htmlspecialchars($grade) ?>" checked>
+                                        <input type="checkbox" name="grading_standards[]"
+                                            value="<?= htmlspecialchars($grade) ?>" checked>
                                         <span class="preset-label"><?= htmlspecialchars($grade) ?></span>
                                     </label>
                                 <?php endforeach; ?>
@@ -1269,7 +1460,8 @@ endif;
 
                             <div class="form-group">
                                 <label for="db_security_mode">Storage &amp; Database Architecture</label>
-                                <input type="text" id="db_security_mode" value="Isolated Outside HTTP Root (data/db)" disabled style="opacity: 0.75; cursor: not-allowed;">
+                                <input type="text" id="db_security_mode" value="Isolated Outside HTTP Root (data/db)"
+                                    disabled style="opacity: 0.75; cursor: not-allowed;">
                                 <span class="input-hint" style="color: #10b981;">✓ Secure path automatically active.</span>
                             </div>
                         </div>
@@ -1277,9 +1469,12 @@ endif;
 
                     <!-- STEP 3: ADMINISTRATOR ACCOUNT & PPP SECURITY -->
                     <div class="step-content" id="step-3">
-                        <h2 style="font-size: 1.25rem; margin-bottom: 6px;">🔐 Administrator Security &amp; Authentication</h2>
+                        <h2 style="font-size: 1.25rem; margin-bottom: 6px;">🔐 Administrator Security &amp; Authentication
+                        </h2>
                         <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
-                            Configure master administrator credentials. Use Steve Gibson's <strong>Perfect Paper Passwords (PPP)</strong> offline passcard system, fast-track with <strong>default credentials</strong>, or set a custom password.
+                            Configure master administrator credentials. Use Steve Gibson's <strong>Perfect Paper Passwords
+                                (PPP)</strong> offline passcard system, fast-track with <strong>default
+                                credentials</strong>, or set a custom password.
                         </p>
 
                         <!-- Admin Account Identity (Username & Display Name) -->
@@ -1298,37 +1493,50 @@ endif;
                         </div>
 
                         <!-- Hidden Authentication State Inputs -->
-                        <input type="hidden" name="auth_mode" id="auth_mode_input" value="<?= $system_protected ? 'keep_existing' : 'ppp' ?>">
-                        <input type="hidden" name="ppp_sequence_key" id="ppp_sequence_key_input" value="<?= htmlspecialchars($existing_seq_key) ?>">
-                        <input type="hidden" name="ppp_row_index" id="ppp_row_index_input" value="<?= $existing_row_index ?>">
-                        <input type="hidden" name="ppp_password_len" id="ppp_password_len_input" value="<?= $existing_pass_len ?>">
+                        <input type="hidden" name="auth_mode" id="auth_mode_input"
+                            value="<?= $system_protected ? 'keep_existing' : 'ppp' ?>">
+                        <input type="hidden" name="ppp_sequence_key" id="ppp_sequence_key_input"
+                            value="<?= htmlspecialchars($existing_seq_key) ?>">
+                        <input type="hidden" name="ppp_row_index" id="ppp_row_index_input"
+                            value="<?= $existing_row_index ?>">
+                        <input type="hidden" name="ppp_password_len" id="ppp_password_len_input"
+                            value="<?= $existing_pass_len ?>">
                         <input type="hidden" name="selected_passcode" id="selected_passcode_input" value="">
 
                         <!-- Authentication Mode Selector Tabs -->
                         <div style="margin-bottom: 1.5rem;">
                             <label style="display: block; margin-bottom: 8px;">Choose Authentication Method</label>
-                            <div class="auth-mode-grid" style="<?= $system_protected ? 'grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));' : '' ?>">
+                            <div class="auth-mode-grid"
+                                style="<?= $system_protected ? 'grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));' : '' ?>">
                                 <?php if ($system_protected): ?>
-                                    <div class="auth-mode-card active" id="mode-card-keep" onclick="switchAuthMode('keep_existing')">
+                                    <div class="auth-mode-card active" id="mode-card-keep"
+                                        onclick="switchAuthMode('keep_existing')">
                                         <div class="auth-mode-icon">🛡️</div>
                                         <div class="auth-mode-title">Keep Current Password</div>
-                                        <div class="auth-mode-badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">Preserve (Active)</div>
-                                        <div class="auth-mode-desc">Retain active admin credentials and passcard without modification.</div>
+                                        <div class="auth-mode-badge"
+                                            style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">
+                                            Preserve (Active)</div>
+                                        <div class="auth-mode-desc">Retain active admin credentials and passcard without
+                                            modification.</div>
                                     </div>
                                 <?php endif; ?>
 
-                                <div class="auth-mode-card <?= !$system_protected ? 'active' : '' ?>" id="mode-card-ppp" onclick="switchAuthMode('ppp')">
+                                <div class="auth-mode-card <?= !$system_protected ? 'active' : '' ?>" id="mode-card-ppp"
+                                    onclick="switchAuthMode('ppp')">
                                     <div class="auth-mode-icon">🔑</div>
                                     <div class="auth-mode-title">Perfect Paper Passwords</div>
                                     <div class="auth-mode-badge badge-recom">Recommended</div>
-                                    <div class="auth-mode-desc">High-entropy Steve Gibson GRC passcard grid. Offline paper MFA.</div>
+                                    <div class="auth-mode-desc">High-entropy Steve Gibson GRC passcard grid. Offline paper
+                                        MFA.</div>
                                 </div>
 
-                                <div class="auth-mode-card" id="mode-card-default" onclick="switchAuthMode('default_creds')">
+                                <div class="auth-mode-card" id="mode-card-default"
+                                    onclick="switchAuthMode('default_creds')">
                                     <div class="auth-mode-icon">⚡</div>
                                     <div class="auth-mode-title">Default Credentials</div>
                                     <div class="auth-mode-badge badge-fast">Fast Track</div>
-                                    <div class="auth-mode-desc">Use standard <code>admin</code> / <code>123</code> to enter Order Manager right away.</div>
+                                    <div class="auth-mode-desc">Use standard <code>admin</code> / <code>123</code> to enter
+                                        Order Manager right away.</div>
                                 </div>
 
                                 <div class="auth-mode-card" id="mode-card-custom" onclick="switchAuthMode('custom')">
@@ -1342,61 +1550,94 @@ endif;
 
                         <?php if ($system_protected): ?>
                             <!-- PANEL 0: KEEP CURRENT CREDENTIALS -->
-                            <div id="auth-panel-keep" class="auth-panel active" style="text-align: center; padding: 2rem 1.5rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 14px;">
+                            <div id="auth-panel-keep" class="auth-panel active"
+                                style="text-align: center; padding: 2rem 1.5rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 14px;">
                                 <div style="font-size: 2.5rem; margin-bottom: 8px;">🛡️</div>
-                                <h3 style="font-size: 1.15rem; margin-bottom: 6px; color: white;">Current Credentials Will Be Maintained</h3>
-                                <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 480px; margin: 0 auto 1.2rem;">
-                                    Your active administrator password, passcard row index, and sequence keys will remain untouched. Only business identity, trade presets, and label standards will be updated.
+                                <h3 style="font-size: 1.15rem; margin-bottom: 6px; color: white;">Current Credentials Will Be
+                                    Maintained</h3>
+                                <p
+                                    style="color: var(--text-muted); font-size: 0.85rem; max-width: 480px; margin: 0 auto 1.2rem;">
+                                    Your active administrator password, passcard row index, and sequence keys will remain
+                                    untouched. Only business identity, trade presets, and label standards will be updated.
                                 </p>
-                                <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(33, 136, 56, 0.15); border: 1px solid rgba(33, 136, 56, 0.3); border-radius: 8px; padding: 8px 16px; color: #4ade80; font-size: 0.85rem; font-weight: 600;">
+                                <div
+                                    style="display: inline-flex; align-items: center; gap: 8px; background: rgba(33, 136, 56, 0.15); border: 1px solid rgba(33, 136, 56, 0.3); border-radius: 8px; padding: 8px 16px; color: #4ade80; font-size: 0.85rem; font-weight: 600;">
                                     ✓ Active Master Password Maintained
                                 </div>
                             </div>
                         <?php endif; ?>
 
                         <!-- PANEL 1: PERFECT PAPER PASSWORDS (PPP) -->
-                        <div id="auth-panel-ppp" class="auth-panel <?= !$system_protected ? 'active' : '' ?>" style="<?= $system_protected ? 'display: none;' : '' ?>">
+                        <div id="auth-panel-ppp" class="auth-panel <?= !$system_protected ? 'active' : '' ?>"
+                            style="<?= $system_protected ? 'display: none;' : '' ?>">
                             <!-- Top Toolbar: Length Range & 64-Hex Key -->
                             <div class="ppp-control-box">
                                 <div style="flex: 1; min-width: 140px;">
-                                    <label for="ppp_length_input" style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Password Length</label>
+                                    <label for="ppp_length_input"
+                                        style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Password
+                                        Length</label>
                                     <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                                        <input type="number" id="ppp_length_input" value="<?= $existing_pass_len ?>" min="25" max="80" onchange="onPPPConfigChange()" style="width: 80px; text-align: center; font-weight: 800; font-family: monospace;">
-                                        <span id="entropy-badge" style="font-size: 0.75rem; color: #38bdf8; font-weight: 600; background: rgba(56, 189, 248, 0.12); padding: 4px 8px; border-radius: 6px;">180-bit Entropy</span>
+                                        <input type="number" id="ppp_length_input" value="<?= $existing_pass_len ?>"
+                                            min="25" max="80" onchange="onPPPConfigChange()"
+                                            style="width: 80px; text-align: center; font-weight: 800; font-family: monospace;">
+                                        <span id="entropy-badge"
+                                            style="font-size: 0.75rem; color: #38bdf8; font-weight: 600; background: rgba(56, 189, 248, 0.12); padding: 4px 8px; border-radius: 6px;">180-bit
+                                            Entropy</span>
                                     </div>
                                 </div>
 
                                 <div style="flex: 2; min-width: 260px;">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <label for="ppp_display_key" style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Sequence Key (128 / 256-Bit Hex)</label>
-                                        <span id="key-bit-badge" style="font-size: 0.72rem; color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.12); padding: 2px 6px; border-radius: 4px;">256-bit Key</span>
+                                        <label for="ppp_display_key"
+                                            style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Sequence
+                                            Key (128 / 256-Bit Hex)</label>
+                                        <span id="key-bit-badge"
+                                            style="font-size: 0.72rem; color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.12); padding: 2px 6px; border-radius: 4px;">256-bit
+                                            Key</span>
                                     </div>
                                     <div style="display: flex; gap: 6px; margin-top: 4px;">
-                                        <input type="text" id="ppp_display_key" value="<?= htmlspecialchars($existing_seq_key) ?>" placeholder="Enter 32 or 64-hex key, or generate..." style="font-family: monospace; font-size: 0.8rem; letter-spacing: 0.5px;" oninput="onKeyInputChange()" onchange="applyManualKey()" onkeydown="if(event.key==='Enter'){event.preventDefault();applyManualKey();}">
-                                        <button type="button" class="btn-tool" onclick="triggerGenKey()" title="Generate Random 64-Hex Key">🎲 Gen Key</button>
-                                        <button type="button" class="btn-tool" onclick="copySequenceKey()" title="Copy Sequence Key">📋</button>
-                                        <button type="button" class="btn-tool" id="btn_load_key" onclick="applyManualKey()" title="Load Grid" style="background: var(--accent-gradient); color: white;">🔍 Load</button>
+                                        <input type="text" id="ppp_display_key"
+                                            value="<?= htmlspecialchars($existing_seq_key) ?>"
+                                            placeholder="Enter 32 or 64-hex key, or generate..."
+                                            style="font-family: monospace; font-size: 0.8rem; letter-spacing: 0.5px;"
+                                            oninput="onKeyInputChange()" onchange="applyManualKey()"
+                                            onkeydown="if(event.key==='Enter'){event.preventDefault();applyManualKey();}">
+                                        <button type="button" class="btn-tool" onclick="triggerGenKey()"
+                                            title="Generate Random 64-Hex Key">🎲 Gen Key</button>
+                                        <button type="button" class="btn-tool" onclick="copySequenceKey()"
+                                            title="Copy Sequence Key">📋</button>
+                                        <button type="button" class="btn-tool" id="btn_load_key" onclick="applyManualKey()"
+                                            title="Load Grid" style="background: var(--accent-gradient); color: white;">🔍
+                                            Load</button>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Selected Passcode Banner -->
-                            <div id="selected-passcode-callout" class="ppp-selection-banner" style="<?= $existing_row_index > 0 ? '' : 'display:none;' ?>">
-                                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                            <div id="selected-passcode-callout" class="ppp-selection-banner"
+                                style="<?= $existing_row_index > 0 ? '' : 'display:none;' ?>">
+                                <div
+                                    style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                                     <div>
                                         <span style="font-size: 0.85rem; color: #94a3b8;">Active Secret Passcode:</span>
-                                        <strong id="active-row-badge" style="color: #38bdf8; font-size: 1rem; margin-left: 6px;">Row <?= str_pad($existing_row_index, 2, '0', STR_PAD_LEFT) ?></strong>
-                                        <div id="passcode-preview-str" style="font-family: monospace; font-size: 0.85rem; color: #a7f3d0; margin-top: 4px; word-break: break-all;">
+                                        <strong id="active-row-badge"
+                                            style="color: #38bdf8; font-size: 1rem; margin-left: 6px;">Row
+                                            <?= str_pad($existing_row_index, 2, '0', STR_PAD_LEFT) ?></strong>
+                                        <div id="passcode-preview-str"
+                                            style="font-family: monospace; font-size: 0.85rem; color: #a7f3d0; margin-top: 4px; word-break: break-all;">
                                             ••••••••••••••••••••••••••••••
                                         </div>
                                     </div>
                                     <div style="display: flex; gap: 6px;">
-                                        <button type="button" class="btn-tool" onclick="togglePasscodeVisibility()" id="btnTogglePasscode">👁️ Reveal</button>
-                                        <button type="button" class="btn-tool" onclick="copyActivePasscode()">📋 Copy Passcode</button>
+                                        <button type="button" class="btn-tool" onclick="togglePasscodeVisibility()"
+                                            id="btnTogglePasscode">👁️ Reveal</button>
+                                        <button type="button" class="btn-tool" onclick="copyActivePasscode()">📋 Copy
+                                            Passcode</button>
                                     </div>
                                 </div>
                                 <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px;">
-                                    💡 Keep this card printed or saved offline. When logging into Order Manager, use this row's passcode.
+                                    💡 Keep this card printed or saved offline. When logging into Order Manager, use this
+                                    row's passcode.
                                 </div>
                             </div>
 
@@ -1404,15 +1645,22 @@ endif;
                             <div style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
                                 <!-- QR Thumbnail -->
                                 <div class="ppp-qr-box" onclick="viewLargeQR()" title="Click to enlarge Sequence QR Code">
-                                    <img id="ppp_qr_img" src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&amp;data=<?= urlencode($existing_seq_key) ?>" alt="PPP Sequence QR Code">
-                                    <span style="font-size: 0.65rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-top: 6px;">Sequence QR</span>
+                                    <img id="ppp_qr_img"
+                                        src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&amp;data=<?= urlencode($existing_seq_key) ?>"
+                                        alt="PPP Sequence QR Code">
+                                    <span
+                                        style="font-size: 0.65rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-top: 6px;">Sequence
+                                        QR</span>
                                 </div>
 
                                 <!-- Passcard Table Preview -->
                                 <div style="flex: 1; min-width: 280px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                        <span style="font-size: 0.8rem; font-weight: 700; color: #cbd5e1;">Live Passcard Grid Preview</span>
-                                        <span style="font-size: 0.72rem; color: #38bdf8; font-style: italic;">Click any row to choose it as your secret passcode</span>
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                        <span style="font-size: 0.8rem; font-weight: 700; color: #cbd5e1;">Live Passcard
+                                            Grid Preview</span>
+                                        <span style="font-size: 0.72rem; color: #38bdf8; font-style: italic;">Click any row
+                                            to choose it as your secret passcode</span>
                                     </div>
                                     <div class="ppp-table-container">
                                         <table class="ppp-grid-table">
@@ -1436,25 +1684,34 @@ endif;
 
                             <!-- Action Bar: Print, View, Guide -->
                             <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
-                                <button type="button" class="btn-wizard btn-prev" onclick="printPPPCard()" style="flex: 1; min-width: 150px; justify-content: center; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">
+                                <button type="button" class="btn-wizard btn-prev" onclick="printPPPCard()"
+                                    style="flex: 1; min-width: 150px; justify-content: center; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">
                                     🖨️ Print Passcard
                                 </button>
-                                <button type="button" class="btn-wizard btn-prev" onclick="viewPPPCard()" style="flex: 1; min-width: 150px; justify-content: center;">
+                                <button type="button" class="btn-wizard btn-prev" onclick="viewPPPCard()"
+                                    style="flex: 1; min-width: 150px; justify-content: center;">
                                     📄 View Passcard
                                 </button>
-                                <button type="button" class="btn-wizard btn-prev" onclick="togglePPPExplanation()" style="padding: 0.8rem 1rem;">
+                                <button type="button" class="btn-wizard btn-prev" onclick="togglePPPExplanation()"
+                                    style="padding: 0.8rem 1rem;">
                                     ❓ What is PPP?
                                 </button>
                             </div>
 
                             <!-- How PPP Works Collapsible Box -->
-                            <div id="ppp-explanation-box" style="display: none; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--card-border); border-radius: 12px; padding: 1.2rem; margin-top: 15px; font-size: 0.82rem; color: #94a3b8; line-height: 1.5;">
-                                <h4 style="color: white; margin-top: 0; margin-bottom: 6px; font-size: 0.95rem;">🔑 How Perfect Paper Passwords (PPP) Works</h4>
-                                <p style="margin-bottom: 8px;">Designed by Steve Gibson of Gibson Research Corporation (GRC), PPP is an offline authentication system. Using AES-256 in counter mode, your 64-hexadecimal sequence key generates a pseudo-random 25-row passcard.</p>
+                            <div id="ppp-explanation-box"
+                                style="display: none; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--card-border); border-radius: 12px; padding: 1.2rem; margin-top: 15px; font-size: 0.82rem; color: #94a3b8; line-height: 1.5;">
+                                <h4 style="color: white; margin-top: 0; margin-bottom: 6px; font-size: 0.95rem;">🔑 How
+                                    Perfect Paper Passwords (PPP) Works</h4>
+                                <p style="margin-bottom: 8px;">Designed by Steve Gibson of Gibson Research Corporation
+                                    (GRC), PPP is an offline authentication system. Using AES-256 in counter mode, your
+                                    64-hexadecimal sequence key generates a pseudo-random 25-row passcard.</p>
                                 <ul style="padding-left: 20px; margin: 0;">
                                     <li>Print this passcard and keep it in your wallet, desk drawer, or smartphone.</li>
-                                    <li>When logging into Order Manager, simply enter the passcode from your chosen secret row.</li>
-                                    <li>Your computer never stores the master key in browser storage, defeating keyloggers and database leaks.</li>
+                                    <li>When logging into Order Manager, simply enter the passcode from your chosen secret
+                                        row.</li>
+                                    <li>Your computer never stores the master key in browser storage, defeating keyloggers
+                                        and database leaks.</li>
                                 </ul>
                             </div>
                         </div>
@@ -1463,9 +1720,12 @@ endif;
                         <div id="auth-panel-default" class="auth-panel" style="display: none;">
                             <div class="fast-track-box">
                                 <div style="font-size: 2.5rem; margin-bottom: 8px;">⚡</div>
-                                <h3 style="font-size: 1.15rem; margin-bottom: 6px; color: white;">Instant Fast-Track Access Active</h3>
-                                <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 480px; margin: 0 auto 1.2rem;">
-                                    Default warehouse credentials will be committed to <code>users.db</code> so you can log into the Order Manager immediately.
+                                <h3 style="font-size: 1.15rem; margin-bottom: 6px; color: white;">Instant Fast-Track Access
+                                    Active</h3>
+                                <p
+                                    style="color: var(--text-muted); font-size: 0.85rem; max-width: 480px; margin: 0 auto 1.2rem;">
+                                    Default warehouse credentials will be committed to <code>users.db</code> so you can log
+                                    into the Order Manager immediately.
                                 </p>
                                 <div class="credentials-badge-box">
                                     <div class="cred-item">
@@ -1491,19 +1751,24 @@ endif;
 
                         <!-- PANEL 3: CUSTOM PASSWORD BYPASS -->
                         <div id="auth-panel-custom" class="auth-panel" style="display: none;">
-                            <div class="alert-error" style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3); color: #fde68a; margin-bottom: 1.2rem;">
-                                ⚠️ <strong>PPP Bypass Notice:</strong> Traditional passwords are prone to brute-forcing, dictionary attacks, and keylogging. Consider using Perfect Paper Passwords for high security.
+                            <div class="alert-error"
+                                style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3); color: #fde68a; margin-bottom: 1.2rem;">
+                                ⚠️ <strong>PPP Bypass Notice:</strong> Traditional passwords are prone to brute-forcing,
+                                dictionary attacks, and keylogging. Consider using Perfect Paper Passwords for high
+                                security.
                             </div>
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="admin_pass">Custom Admin Password *</label>
-                                    <input type="password" id="admin_pass" name="admin_pass" placeholder="Enter secure password">
+                                    <input type="password" id="admin_pass" name="admin_pass"
+                                        placeholder="Enter secure password">
                                     <span class="input-hint">Minimum 4 characters (recommended 12+).</span>
                                 </div>
 
                                 <div class="form-group">
                                     <label for="admin_pass_confirm">Confirm Password *</label>
-                                    <input type="password" id="admin_pass_confirm" name="admin_pass_confirm" placeholder="Confirm password exactly">
+                                    <input type="password" id="admin_pass_confirm" name="admin_pass_confirm"
+                                        placeholder="Confirm password exactly">
                                     <span class="input-hint">Repeat the custom password.</span>
                                 </div>
                             </div>
@@ -1513,28 +1778,36 @@ endif;
                     <!-- STEP 4: FINAL REVIEW -->
                     <div class="step-content" id="step-4">
                         <h2 style="font-size: 1.25rem; margin-bottom: 6px;">📋 Review &amp; Launch</h2>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">Review your operational setup before initializing the warehouse ecosystem.</p>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">Review your
+                            operational setup before initializing the warehouse ecosystem.</p>
 
-                        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 14px; padding: 1.5rem; display: grid; gap: 12px; font-size: 0.9rem;">
-                            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+                        <div
+                            style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 14px; padding: 1.5rem; display: grid; gap: 12px; font-size: 0.9rem;">
+                            <div
+                                style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
                                 <span style="color: var(--text-muted);">Company Name:</span>
-                                <strong id="rev-company-name">Latinos PC</strong>
+                                <strong id="rev-company-name">IQA Metal</strong>
                             </div>
-                            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+                            <div
+                                style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
                                 <span style="color: var(--text-muted);">System Title:</span>
-                                <strong id="rev-system-title">Latinos PC Warehouse Systems</strong>
+                                <strong id="rev-system-title">IQA Metal Warehouse Systems</strong>
                             </div>
-                            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+                            <div
+                                style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
                                 <span style="color: var(--text-muted);">Website URL:</span>
                                 <strong id="rev-company-url">https://latinospc.com</strong>
                             </div>
-                            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+                            <div
+                                style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
                                 <span style="color: var(--text-muted);">Administrator:</span>
                                 <strong id="rev-admin-user">admin</strong>
                             </div>
-                            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+                            <div
+                                style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
                                 <span style="color: var(--text-muted);">Auth Security Mode:</span>
-                                <span id="rev-auth-mode"><strong style="color: #38bdf8;">🔑 Perfect Paper Passwords</strong></span>
+                                <span id="rev-auth-mode"><strong style="color: #38bdf8;">🔑 Perfect Paper
+                                        Passwords</strong></span>
                             </div>
                             <div style="display: flex; justify-content: space-between;">
                                 <span style="color: var(--text-muted);">Database Isolation:</span>
@@ -1543,17 +1816,25 @@ endif;
                         </div>
 
                         <?php if ($system_protected): ?>
-                            <div style="margin-top: 1.5rem; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 14px; padding: 1.25rem;">
-                                <label for="current_admin_password" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; font-weight: 700; color: #fca5a5; margin-bottom: 6px;">
+                            <div
+                                style="margin-top: 1.5rem; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 14px; padding: 1.25rem;">
+                                <label for="current_admin_password"
+                                    style="display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; font-weight: 700; color: #fca5a5; margin-bottom: 6px;">
                                     <span>🔒 Authorize Changes: Current Admin Password *</span>
-                                    <span style="font-size: 0.72rem; color: #f87171; font-weight: 600;">Mandatory Confirmation</span>
+                                    <span style="font-size: 0.72rem; color: #f87171; font-weight: 600;">Mandatory
+                                        Confirmation</span>
                                 </label>
                                 <p style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;">
-                                    To safeguard live production databases against unauthorized modifications, confirm your <strong>current administrator password</strong> (or active PPP passcode) to commit changes.
+                                    To safeguard live production databases against unauthorized modifications, confirm your
+                                    <strong>current administrator password</strong> (or active PPP passcode) to commit changes.
                                 </p>
                                 <div style="position: relative;">
-                                    <input type="password" id="current_admin_password" name="current_admin_password" placeholder="Enter current admin password to commit changes..." required style="padding-right: 44px; font-size: 0.9rem;">
-                                    <button type="button" onclick="togglePassVisibility('current_admin_password')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;" title="Toggle visibility">
+                                    <input type="password" id="current_admin_password" name="current_admin_password"
+                                        placeholder="Enter current admin password to commit changes..." required
+                                        style="padding-right: 44px; font-size: 0.9rem;">
+                                    <button type="button" onclick="togglePassVisibility('current_admin_password')"
+                                        style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;"
+                                        title="Toggle visibility">
                                         👁️
                                     </button>
                                 </div>
@@ -1564,7 +1845,8 @@ endif;
                 </div>
 
                 <div class="wizard-footer">
-                    <button type="button" class="btn-wizard btn-prev" id="btnPrev" onclick="prevStep()" style="visibility: hidden;">
+                    <button type="button" class="btn-wizard btn-prev" id="btnPrev" onclick="prevStep()"
+                        style="visibility: hidden;">
                         &larr; Back
                     </button>
                     <button type="button" class="btn-wizard btn-next" id="btnNext" onclick="nextStep()">
@@ -1588,7 +1870,7 @@ endif;
         const totalSteps = 4;
         let pppPasscodes = [];
         let pppActiveSeqKey = "<?= htmlspecialchars($existing_seq_key) ?>";
-        let pppSelectedRow = <?= (int)$existing_row_index ?>;
+        let pppSelectedRow = <?= (int) $existing_row_index ?>;
         let passcodeRevealed = false;
 
         function updateStepUI() {
@@ -1943,7 +2225,7 @@ endif;
             const source = document.getElementById('ppp-printable-card-source');
             if (!source) return;
 
-            const companyName = document.getElementById('company_name').value || 'Latinos PC';
+            const companyName = document.getElementById('company_name').value || 'IQA Metal';
             const username = document.getElementById('admin_user').value || 'admin';
             const length = document.getElementById('ppp_length_input').value || 30;
 
@@ -2072,8 +2354,8 @@ endif;
         }
 
         function populateReview() {
-            document.getElementById('rev-company-name').textContent = document.getElementById('company_name').value || 'Latinos PC';
-            document.getElementById('rev-system-title').textContent = document.getElementById('system_name').value || 'Latinos PC Warehouse Systems';
+            document.getElementById('rev-company-name').textContent = document.getElementById('company_name').value || 'IQA Metal';
+            document.getElementById('rev-system-title').textContent = document.getElementById('system_name').value || 'IQA Metal Warehouse Systems';
             document.getElementById('rev-company-url').textContent = document.getElementById('company_url').value || 'https://latinospc.com';
             document.getElementById('rev-admin-user').textContent = document.getElementById('admin_user').value || 'admin';
 
@@ -2084,7 +2366,7 @@ endif;
                     revAuthMode.innerHTML = `<strong style="color:#38bdf8;">🛡️ Keep Existing Active Credentials</strong>`;
                 } else if (authMode === 'ppp') {
                     const rowIdx = document.getElementById('ppp_row_index_input').value || 1;
-                    revAuthMode.innerHTML = `<strong style="color:#38bdf8;">🔑 Perfect Paper Passwords (Row ${String(rowIdx).padStart(2,'0')})</strong>`;
+                    revAuthMode.innerHTML = `<strong style="color:#38bdf8;">🔑 Perfect Paper Passwords (Row ${String(rowIdx).padStart(2, '0')})</strong>`;
                 } else if (authMode === 'default_creds') {
                     revAuthMode.innerHTML = `<strong style="color:#4ade80;">⚡ Default Credentials (admin / 123)</strong>`;
                 } else {
@@ -2112,4 +2394,5 @@ endif;
         });
     </script>
 </body>
+
 </html>

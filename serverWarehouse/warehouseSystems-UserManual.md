@@ -1,8 +1,8 @@
-# 📦 Latinos PC Warehouse Systems 9/5/2026 10:52 PM
+# 📦 IQA Metal Warehouse Systems 9/5/2026 10:52 PM
 *Last Updated: 9/5/2026 10:52 PM*
 
 
-Welcome to the **Latinos PC Warehouse Systems** user manual. This guide provides comprehensive instructions on how to navigate and utilize the ecosystem for warehouse management, sales logistics, and customer relations.
+Welcome to the **IQA Metal Warehouse Systems** user manual. This guide provides comprehensive instructions on how to navigate and utilize the ecosystem for warehouse management, sales logistics, and customer relations.
 
 ---
 
@@ -18,7 +18,7 @@ Welcome to the **Latinos PC Warehouse Systems** user manual. This guide provides
 ---
 
 ## 1. Introduction
-**Latinos PC Warehouse Systems** is a high-performance management ecosystem designed for physical warehouse environments. It optimizes hardware intake, label logistics, and customer lifecycles through a unified, responsive dashboard.
+**IQA Metal Warehouse Systems** is a high-performance management ecosystem designed for physical warehouse environments. It optimizes hardware intake, label logistics, and customer life cycles through a unified, responsive dashboard.
 
 ### Key Concepts
 - **Monolith System**: All modules are integrated into a single platform for seamless navigation.
@@ -35,7 +35,7 @@ Welcome to the **Latinos PC Warehouse Systems** user manual. This guide provides
 3. **Note**: Non-admin users are restricted to the Warehouse Portal, while admins have full access to all modules.
 
 ### Paper Password User System
-PPP a less secure Version of PPP by GRC is implemented, so that way users are able able to remember a mumber row on a list rather than the actual password.
+PPP a less secure Version of PPP by GRC is implemented, so that way users are able able to remember a number row on a list rather than the actual password.
 
 ### The Dashboard
 Upon logging in, you will see the main dashboard (`index.php`). The sidebar or navigation menu allows you to switch between the Core Modules: **Warehouse**, **Leads**, **Orders**, **Calendar**, **Trends**, and **Settings**.
@@ -73,8 +73,14 @@ The Warehouse module (`/prod/pages/warehouse.php`) is where you manage physical 
 Manage your sales pipeline and customer interactions in the **Leads** module (`/prod/pages/leads.php`).
 
 ### Managing Leads
-- **Executive Bar**: View real-time KPIs, including active lead counts and total pipeline value.
-- **Priority Call Queue**: The system automatically highlights leads that require a follow-up today based on the `Callback Date`.
+- **Executive Bar**: View real-time KPIs, including active lead counts, closed deals, and total pipeline value.
+- **9-Column Bidirectional Sorting**: Click any table header (*Customer / Lead*, *Status*, *Source*, *Interest*, *Last Order*, *Balance*, *Last Contact*, *Next Call*, *Notes*) to sort ascending or descending. Sorting uses raw numeric/date metadata for perfect accuracy.
+- **Priority Urgency Badges**: Next Call dates automatically display color-coded urgency chips:
+  - `🔴 Overdue`: Follow-up date has passed.
+  - `🟡 Due Today`: Follow-up is scheduled for today.
+  - `🟢 Upcoming`: Scheduled for a future date.
+- **Multi-Word Search Highlighting**: Typing search terms dynamically filters the roster and highlights matching keywords in yellow across all columns while respecting active status tabs (*All*, *Active*, *Hot Leads*, *Follow-Ups*, *Converted*).
+- **1-Click Leads CSV Export**: Click **Export Leads CSV** to download the complete active roster formatted for Excel (UTF-8 BOM).
 - **Activity Timeline**: Log every interaction (Call, Email, Chat) to maintain a complete history of the relationship.
 
 ### Converting Leads to Customers
@@ -104,11 +110,17 @@ The ordering workflow is split into two phases: building the batch and finalizin
 - **Auto-Sync**: Lead callback dates automatically appear as suggested tasks on your calendar.
 - **Conversion Tracking**: Events are tagged as **Converted ✅** if they resulted in a sale, helping you measure outreach effectiveness.
 
-### Historical Trends (`/prod/pages/trends.php`)
-- **BI Analytics**: Visualize sales velocity, pricing curves, and hardware dominance (e.g., which CPU generations are selling fastest).
-- **CPU Pricing Insights**: Click any row under the CPU Family Dominance card to open a pricing breakdown. Inspect minimum, maximum, and average prices alongside recent transaction records.
-- **Order Preview**: Click a transaction code (Order ID) in the pricing dialog to instantly overlay a detailed manifest checklist and valuation.
-- **Custom Queries**: Run historical reports to identify buying trends and optimize your inventory procurement.
+### Historical Trends & BI Intelligence (`/prod/pages/trends.php`)
+- **Modular Tabbed Workspace**: Seamlessly navigate between:
+  - 🥇 **Model Demand Velocity**: Top selling hardware models, total quantity, total gross, and **Avg Price displayed before Details** for rapid quotation. Includes 1-click CSV export (`📥 Export CSV`).
+  - 📉 **Pricing Curves & Accounting**: Executive-grade financial analytics with Average Selling Price (ASP) Timeline and Monthly Gross Valuation Trend graphs, complete with MoM growth chips, executive KPI cards, reconciliation ledger, and 1-click accounting export (`📊 Export Ledger CSV`).
+  - 📊 **Dual-Axis Performance Model Switcher**: Seamlessly toggle between **🔀 Split View** (side-by-side ASP and Gross Valuation cards) and **📊 Dual-Axis Combo** (correlating gross revenue on the left axis against weighted ASP on the right axis with synchronized multi-metric hover tooltips). Mode preference automatically persists.
+  - ⚡ **CPU Family Dominance**: Market share breakdowns across Intel Core and AMD Ryzen CPU generations with transaction drill modals.
+  - 👥 **Customer Analytics & Profile Intelligence**: Top buying accounts by volume and total lifetime spend. Click any client company name across Trends tabs or transaction records to open the **Customer Profile & Order History Intelligence Dialog**—instantly reviewing lifetime spend, completed order counts, liquidated units, CRM contact details, recent manifests with 1-click preview links, and direct jump buttons (`View in CRM` and `New Order Batch`).
+  - 📋 **Untested B2B & Tested Market**: Real-time wholesale and retail pricing matrices with live micro-feedback confirmation toasts (`✓ Saved`) and cell glow animations upon editing.
+- **Global Empty States**: Clean, formatted zero-result feedback across all Trends search filters with 1-click filter reset buttons.
+- **Persistent Tab Selection**: Active tabs remain selected across date filter adjustments and page refreshes via URL parameters and session storage.
+- **CPU Pricing Insights & Manifest Preview**: Click any CPU row or transaction order ID to preview full item checklists, serials, and unit valuations.
 
 ---
 

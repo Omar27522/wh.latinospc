@@ -1,4 +1,4 @@
-# 🧠 AI Technical Deep Dive 9/5/2026 10:52 PM
+# 🧠 AI Technical Deep Dive 9/16/2026 11:26 AM
 
 This document details the database schemas, query abstractions, concurrency controls, document generation formulas, and security patterns implemented in the **IQA Warehouse Systems**.
 
@@ -201,6 +201,41 @@ The audit manager `Audit::log()` commits operational logs to the `users.db` `aud
 ---
 
 ## ⚠️ Recent Critical Fixes & Features (September 2026)
+*   **Warehouse Gate Modularization & Zone Spreadsheet View (September 16, 2026)**:
+    *   **Zone Integrated Spreadsheet Engine (`pages/partials/warehouse/spreadsheet_view.php`)**: Embedded full in-cell Excel-style spreadsheet directly inside parent Zone views (`?view=warehouse&zone=[Name]`), rendering all stock across all shelves in the active zone with sector navigation tabs.
+    *   **Dynamic Shelf Location Column & Auto-fill**: Added real-time editable `Shelf` column with datalist autocomplete (`#zone-shelves-list`), inline shelf reassignment via `api/update_inventory_field.php`, and smart default shelf pre-fill on the bottom blank intake row.
+    *   **Modular Component Architecture (`pages/partials/warehouse/`)**: Decomposed monolithic gate view into focused partials: `zone_cards_grid.php` (parent zones with aggregated shelf/item statistics and alert chips), `locations_grid.php` (reusable physical shelf grid supporting single-zone and warehouse-wide cross-zone modes with parent zone tags), and `dashboard_card.php` (modular action launchpad for Global, Zone, and All-Location contexts).
+    *   **Segmented Gate Mode Switcher**: Added responsive toggle (`switchGateViewMode('zones' | 'all_locations')`) in `warehouse_gate.js` and `warehouse.css` persisting preference in `sessionStorage` (`wh_gate_view_mode`), allowing instant switching between hierarchical working zones and a flat searchable grid of all warehouse storage shelves.
+    *   **Cross-Zone Search & Multi-Criteria Sorting**: Upgraded `warehouse_gate.js` with instant multi-attribute filtering (shelf code + parent zone name) and 6 sorting modes (A-Z, Z-A, Status Group, Most Items, Emptiest, and Parent Zone).
+*   **Modular Media & Photography System (September 16, 2026)**:
+    *   **Core Engine (`core/MediaManager.php`)**: Built GD-based WebP converter (`1920px` max, ~200-300KB web view; `160x160px` thumbnail crop, ~8-15KB), EXIF auto-orientation, `YYYY/MM/` date-partitioned storage hierarchy, and cascading file + DB deletions.
+    *   **Live Camera Viewfinder (`assets/js/camera_uploader.js` & `pages/partials/warehouse/camera_modal.php`)**: HTML5 `navigator.mediaDevices.getUserMedia` live viewfinder, front/rear camera switcher, shutter snap with flash effect, freeze-frame preview/retake workflow, and drag-and-drop file upload zone.
+    *   **Universal Upload/Delete APIs (`api/media_upload.php` & `api/media_delete.php`)**: Secure endpoints supporting multipart files and Base64 canvas snapshots, foreign key pre-validation on `locations` table to avoid SQLite constraint violations, and AJAX UI deletion with card fade-out.
+    *   **Monthly Partition Archiving (`core/BackupManager.php`)**: Added `exportMonthlyArchive()` and `getMonthlyArchiveBreakdown()` for date-partitioned `.tar` backups.
+*   **Warehouse Location Status Deduplication (September 16, 2026)**:
+    *   **Global Status Isolation**: Fixed `$all_statuses` query in `pages/warehouse.php` to strictly query global statuses (`location_code IS NULL OR location_code = '' OR location_code = 'GLOBAL'`) with `GROUP BY name`.
+    *   **Grouped Color Subquery**: Replaced raw join with `(SELECT name, color FROM location_statuses GROUP BY name)` to prevent duplicate location cards.
+    *   **Dynamic Shelf Custom Status Handling**: Updated `warehouse_modals.js` (`openRenameModal()`) to dynamically inject the shelf's custom status into the dropdown if missing, and clean it up upon modal closure.
+*   **Shelf Audit & Sync UX Overhaul (September 16, 2026)**:
+    *   Removed redundant bulk "Purge Selected (Record as Sold)" button from the "Shelf Audit & Sync" modal (`inventory_modal.php`).
+    *   Replaced text "Sold / Purge" button with compact trash icon (`🗑️`).
+    *   Changed tab icon from `🗑️` to `🔄` to emphasize reconciliation over deletion.
+*   **Trends Center & Financial Analytics Engine (`/orders/index.php?view=trends`)**:
+    *   **Model Demand Velocity Table Ordering**: Enforced column order: `Rank/Customer` (0, `num/str`), `Brand` (1, `str`), `Model` (2, `str`), `Avg Price` (3, `num`), `Details` (4, `str`), `Latest Sold/Order` (5, `date/str`), `Units Sold` (6, `num`).
+    *   **Financial Graphs (Tab 2 Pricing Curves)**: Restored Chart.js rendering for **Average Selling Price (ASP) Timeline** and **Monthly Gross Realized Valuation**. Time-series points sort chronologically (left-to-right) with financial tooltips showing Realized ASP, Invoiced Units, Gross Revenue, and MoM variance.
+    *   **Valuation & ASP Dual-Axis Combo Chart Mode (Phase 3)**: Added interactive view mode switcher between `🔀 Split View` (side-by-side ASP and Gross Valuation cards) and `📊 Dual-Axis Combo` (correlating gross valuation on the left axis against weighted ASP on the right axis with synchronized multi-metric hover tooltips). Mode preference persists in `sessionStorage` (`pricing_chart_view_mode`).
+    *   **Live Matrix Micro-Feedback & Cell Glow (Phase 3)**: Added `showMatrixSaveToast()` and `.cell-saved-pulse` in `trends_modals.js` and `trends.css` providing immediate visual feedback upon inline edits to B2B Untested Matrix and Tested Market Reference tables.
+    *   **Safe Chart.js Lifecycle**: Added chart destruction guards (`Chart.getChart()`, `aspChartInstance`, `valuationChartInstance`, `comboPricingChartInstance`) to eliminate canvas collision errors when switching tabs or toggling dark/light themes.
+    *   **Tab State & Filter Persistence**: Preserved active tab selection in `sessionStorage` (`trends_active_tab`) and the URL (`?view=trends&tab=...`). Changing the date filter triggers `applyTrendsFilter()` to retain the active tab without resetting.
+    *   **Executive Accounting KPIs & Ledger**: Added financial summary cards (Gross Valuation, Weighted ASP, Volume Realized, Peak Month, MoM Velocity) and a settlement ledger with MoM growth badges, period revenue share %, and reconciliation totals footer (`<tfoot>`).
+    *   **1-Click CSV Exports**: Added UTF-8 BOM formatted exports for Financial Ledger (`exportFinancialLedgerCSV()`), Inventory Demand Velocity (`exportDemandVelocityCSV()`), and Leads CRM (`exportLeadsCSV()`).
+    *   **Customer CRM Profile & Order History Intelligence Dialog (Phase 4)**: Added `#customerProfileModal` in `trends_modals.php` and `openCustomerProfileModal()` in `trends_modals.js`. Querying `index.php?view=trends&action=get_customer_profile` in `trends_actions.php`, it dynamically bridges `customers.db` and `orders.db` to calculate lifetime spend, liquidated units, completed orders, tenure dates, CRM contact information, and recent transaction manifests with instant 1-click manifest modal preview links and direct CRM jump actions (`View in CRM` and `New Order Batch`).
+    *   **Cross-Module Intelligence Links (Phase 4)**: Interactive company name anchors (`.customer-profile-link`) integrated into Tab 4 (*Top B2B Clients by Volume*), Tab 1 (*Model Demand Buyer Names*), and CPU Pricing modal recent sales lists.
+    *   **Global Empty-State Polish (Phase 4)**: Added formatted zero-result placeholders across table-level (`.no-results-row`) and tab-level (`.global-no-results`) search filters with custom iconography and single-click filter reset (`clearSearchInput()`).
+*   **Leads & CRM Follow-Up Optimization (`/orders/index.php?view=leads`)**:
+    *   **Universal Column Sorting**: Enabled sorting across all 9 data columns (`sortLeadsTable(colIndex, type)`) with raw sort values embedded in `data-sort-val`.
+    *   **Follow-Up Urgency Tagging**: Added automated urgency status badges in the `Next Call` column: 🔴 **Overdue** (past date), 🟡 **Due Today** (scheduled today), 🟢 **Upcoming** (future date).
+    *   **Real-Time Search Keyword Highlighting**: Enabled multi-term search highlighting across company names, internal notes, contact channels, and status badges via `highlightLeadNodeWords()`.
 *   **Warehouse Stock Spreadsheet & Multi-Header Sorting (`/marketing/?page=model_templates`)**:
     *   **Live Database Integration**: Embedded live records from `db/warehouse.db` (`inventory` table, 1,211 items) into an interactive spreadsheet view using text box cells (`<input type="text" class="cell-input">`) with Excel-style keyboard navigation (<kbd>↑</kbd>, <kbd>↓</kbd>, <kbd>Enter</kbd>).
     *   **Column Sequencing**: Structured column layout with **QTY** placed immediately adjacent to **Sector** (`Sector` ➔ `Qty` ➔ `Location` ➔ `Brand` ➔ `Model` ➔ `CPU/Series` ➔ `RAM` ➔ `Storage` ➔ `Condition` ➔ `Notes` ➔ `Price` ➔ `Action`).

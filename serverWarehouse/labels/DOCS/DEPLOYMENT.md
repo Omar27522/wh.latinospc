@@ -1,7 +1,7 @@
 # Local Environment Setup Guide (XAMPP)
 
 ## 1. Overview
-The Latinos PC Inventory & Label system is designed to run on a local network server. This guide explains how to set up the environment on a dedicated Windows machine using **XAMPP**.
+The IQA Metal Inventory & Label system is designed to run on a local network server. This guide explains how to set up the environment on a dedicated Windows machine using **XAMPP**.
 
 By following these steps, any device on your local warehouse network (phones, tablets, other laptops) will be able to access the app via a web browser.
 

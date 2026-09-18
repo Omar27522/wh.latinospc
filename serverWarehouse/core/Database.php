@@ -1,11 +1,12 @@
 <?php
 /**
- * Latinos PC Warehouse Systems - Centralized Database Manager
+ * IQA Metal Warehouse Systems - Centralized Database Manager
  * Unified PDO connection pool, schema management, and cross-database query engine.
  * Stores all SQLite databases safely outside the HTTP web root in data/db/.
  */
 
-class Database {
+class Database
+{
     private static $instances = [];
     private static $db_dir = null;
 
@@ -13,7 +14,8 @@ class Database {
      * Resolves the database directory, prioritizing the secure data/db directory
      * located outside the HTTP web scope.
      */
-    public static function getDbDir() {
+    public static function getDbDir()
+    {
         if (self::$db_dir !== null) {
             return self::$db_dir;
         }
@@ -58,7 +60,8 @@ class Database {
      * @param string $db_name Name of the database (e.g., 'customers', 'orders', 'warehouse', 'users', 'tech')
      * @return PDO
      */
-    public static function getConnection($db_name) {
+    public static function getConnection($db_name)
+    {
         if (!isset(self::$instances[$db_name])) {
             $dir = self::getDbDir();
             $db_path = $dir . '/' . $db_name . '.db';
@@ -107,13 +110,34 @@ class Database {
     }
 
     // Convenience connection getters
-    public static function customers() { return self::getConnection('customers'); }
-    public static function orders() { return self::getConnection('orders'); }
-    public static function warehouse() { return self::getConnection('warehouse'); }
-    public static function users() { return self::getConnection('users'); }
-    public static function calendar() { return self::getConnection('calendar'); }
-    public static function tech() { return self::getConnection('tech'); }
-    public static function marketing() { return self::getConnection('marketing'); }
+    public static function customers()
+    {
+        return self::getConnection('customers');
+    }
+    public static function orders()
+    {
+        return self::getConnection('orders');
+    }
+    public static function warehouse()
+    {
+        return self::getConnection('warehouse');
+    }
+    public static function users()
+    {
+        return self::getConnection('users');
+    }
+    public static function calendar()
+    {
+        return self::getConnection('calendar');
+    }
+    public static function tech()
+    {
+        return self::getConnection('tech');
+    }
+    public static function marketing()
+    {
+        return self::getConnection('marketing');
+    }
 
     /**
      * Attaches another database to the current connection for cross-database joins.
@@ -122,7 +146,8 @@ class Database {
      * @param string $db_to_attach The name of the DB to attach (e.g., 'customers')
      * @param string $alias The alias to use for the attached DB (e.g., 'cust')
      */
-    public static function attach(PDO $conn, $db_to_attach, $alias) {
+    public static function attach(PDO $conn, $db_to_attach, $alias)
+    {
         $db_path = self::getDbDir() . '/' . $db_to_attach . '.db';
         $conn->exec("ATTACH DATABASE '{$db_path}' AS {$alias}");
     }
@@ -137,12 +162,14 @@ class Database {
      * @param array $params Optional positional parameters
      * @return PDOStatement
      */
-    public static function queryIntegrated($primary_db, $attachments, $sql, $params = []) {
+    public static function queryIntegrated($primary_db, $attachments, $sql, $params = [])
+    {
         $conn = self::getConnection($primary_db);
         foreach ($attachments as $alias => $name) {
             try {
                 self::attach($conn, $name, $alias);
-            } catch (Exception $e) { }
+            } catch (Exception $e) {
+            }
         }
         $stmt = $conn->prepare($sql);
         $stmt->execute($params);
@@ -154,26 +181,33 @@ class Database {
     /**
      * Schema Caching: Checks if a table/schema has been verified in this process or session.
      */
-    public static function isSchemaVerified($db, $table) {
-        if (isset(self::$verified_schemas[$db][$table])) return true;
-        if (session_status() === PHP_SESSION_NONE) return false;
+    public static function isSchemaVerified($db, $table)
+    {
+        if (isset(self::$verified_schemas[$db][$table]))
+            return true;
+        if (session_status() === PHP_SESSION_NONE)
+            return false;
         return isset($_SESSION['verified_schemas'][$db][$table]);
     }
 
     /**
      * Schema Caching: Marks a table/schema as verified.
      */
-    public static function markSchemaVerified($db, $table) {
+    public static function markSchemaVerified($db, $table)
+    {
         self::$verified_schemas[$db][$table] = true;
-        if (session_status() === PHP_SESSION_NONE) return;
+        if (session_status() === PHP_SESSION_NONE)
+            return;
         $_SESSION['verified_schemas'][$db][$table] = true;
     }
 
     /**
      * Initializes schema and migration routines for the Tech module
      */
-    public static function initTechSchema(PDO $conn) {
-        if (self::isSchemaVerified('tech', 'all')) return;
+    public static function initTechSchema(PDO $conn)
+    {
+        if (self::isSchemaVerified('tech', 'all'))
+            return;
 
         // Logs Table (Good and Bad logs distinguished by status)
         $conn->exec("CREATE TABLE IF NOT EXISTS logs (
@@ -216,7 +250,8 @@ class Database {
             if (!in_array('os', $col_names)) {
                 $conn->exec("ALTER TABLE logs ADD COLUMN os TEXT");
             }
-        } catch (Exception $e) { }
+        } catch (Exception $e) {
+        }
 
         // daily_status_changes table to track Good-to-Bad limit of 5 per day per tech
         $conn->exec("CREATE TABLE IF NOT EXISTS daily_status_changes (
@@ -253,7 +288,8 @@ class Database {
                     $stmt_ins->execute($part);
                 }
             }
-        } catch (Exception $e) { }
+        } catch (Exception $e) {
+        }
 
         self::markSchemaVerified('tech', 'all');
     }

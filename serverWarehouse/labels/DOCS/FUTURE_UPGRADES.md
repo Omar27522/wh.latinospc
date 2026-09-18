@@ -1,7 +1,7 @@
 # 🚀 Future Upgrades & Potential Enhancements
 
 **File:** `DOCS/FUTURE_UPGRADES.md`
-**Purpose:** Brainstormed features and potential upgrades for the Latinos PC project.
+**Purpose:** Brainstormed features and potential upgrades for the IQA Metal project.
 
 ---
 

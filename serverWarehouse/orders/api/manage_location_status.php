@@ -3,7 +3,9 @@
 header('Content-Type: application/json');
 require_once __DIR__ . '/../core/database.php';
 require_once __DIR__ . '/../core/Security.php';
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
     http_response_code(401);
@@ -24,6 +26,7 @@ function getStatusPayload($conn_wh, $loc = null) {
     foreach ($globals as &$g) {
         $g['is_global'] = true;
     }
+    unset($g);
 
     $custom_status = null;
     if (!empty($loc) && $loc !== 'GLOBAL') {
@@ -49,6 +52,7 @@ function getStatusPayload($conn_wh, $loc = null) {
     foreach ($other_custom as &$oc) {
         $oc['is_global'] = false;
     }
+    unset($oc);
 
     // Build deduplicated combined list for general management view
     $all_distinct = [];

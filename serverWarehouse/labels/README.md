@@ -1,4 +1,4 @@
-# Latinos PC Inventory & Label System
+# IQA Metal Inventory & Label System
 
 ## 1. Project Overview
 This application is a local-network warehouse inventory tracker and hardware label printer. It was built using a "Vibe Coding" philosophy: clean, direct, and unbloated foundations that any developer or AI agent can immediately understand.

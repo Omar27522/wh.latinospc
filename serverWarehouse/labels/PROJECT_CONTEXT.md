@@ -5,7 +5,7 @@
 ---
 
 ## 🏗️ 1. Project Overview & Tech Stack
-**App:** Latinos PC Inventory & Label Printer.
+**App:** IQA Metal Inventory & Label Printer.
 **Goal:** Track physical hardware in a warehouse and print `.odt` labels for individual units.
 **Tech Stack:**
 - **Frontend:** Vanilla HTML5, Vanilla CSS3, Vanilla JS.

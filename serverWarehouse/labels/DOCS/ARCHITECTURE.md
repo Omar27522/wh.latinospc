@@ -1,7 +1,7 @@
 # System Architecture & Database Schema
 
 ## 1. Overview
-This document outlines how the Latinos PC Inventory & Label app manages its data.
+This document outlines how the IQA Metal Inventory & Label app manages its data.
 The application uses **SQLite 3** database files (`.sqlite`) located in the `/db/` directory, with PHP Data Objects (PDO) for all database interactions. All queries use Prepared Statements (`$stmt->prepare()`) to prevent SQL Injection.
 
 ---
