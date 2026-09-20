@@ -7,7 +7,7 @@
 include 'core/warehouse_db.php';
 include 'core/auth.php'; // Session is already started and checked
 
-$current_user = $_SESSION['username'] ?? $_SESSION['user'] ?? 'System';
+$current_user = $_SESSION['username'];
 $selected_sector = $_GET['sector'] ?? 'Laptops';
 $selected_loc = $_GET['loc'] ?? null;
 $active_zone_name = $_GET['zone'] ?? null;
@@ -42,33 +42,13 @@ $stmt_locs = $conn_wh->query("
 ");
 $existing_locs = $stmt_locs->fetchAll(PDO::FETCH_ASSOC);
 
-try {
-    $all_statuses = $conn_wh->query("
-        SELECT MIN(id) AS id, name, color, is_default 
-        FROM location_statuses 
-        WHERE location_code IS NULL OR location_code = '' OR location_code = 'GLOBAL'
-        GROUP BY name 
-        ORDER BY is_default DESC, name ASC
-    ")->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    // If schema cache was stale or migration hadn't run yet, self-heal immediately
-    $cols = $conn_wh->query("PRAGMA table_info(location_statuses)")->fetchAll(PDO::FETCH_ASSOC);
-    $col_names = array_column($cols, 'name');
-    if (!in_array('is_default', $col_names)) {
-        $conn_wh->exec("ALTER TABLE location_statuses ADD COLUMN is_default INTEGER DEFAULT 0");
-        $conn_wh->exec("UPDATE location_statuses SET is_default = 1 WHERE LOWER(name) IN ('working', 'audit', 'shipping', 'in-review', 'warehoused', 'idle')");
-    }
-    if (!in_array('location_code', $col_names)) {
-        $conn_wh->exec("ALTER TABLE location_statuses ADD COLUMN location_code TEXT DEFAULT NULL");
-    }
-    $all_statuses = $conn_wh->query("
-        SELECT MIN(id) AS id, name, color, is_default 
-        FROM location_statuses 
-        WHERE location_code IS NULL OR location_code = '' OR location_code = 'GLOBAL'
-        GROUP BY name 
-        ORDER BY is_default DESC, name ASC
-    ")->fetchAll(PDO::FETCH_ASSOC);
-}
+$all_statuses = $conn_wh->query("
+    SELECT MIN(id) AS id, name, color, is_default 
+    FROM location_statuses 
+    WHERE is_default = 1
+    GROUP BY name 
+    ORDER BY name ASC
+")->fetchAll(PDO::FETCH_ASSOC);
 $sectors = $conn_wh->query("SELECT * FROM sectors")->fetchAll(PDO::FETCH_ASSOC);
 
 // 3. Fetch Inventory Items

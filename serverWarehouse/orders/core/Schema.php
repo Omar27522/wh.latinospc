@@ -84,9 +84,7 @@ class Schema {
             'location_statuses' => "CREATE TABLE IF NOT EXISTS location_statuses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE,
-                color TEXT,
-                is_default INTEGER DEFAULT 0,
-                location_code TEXT DEFAULT NULL
+                color TEXT
             )",
             'working_zones' => "CREATE TABLE IF NOT EXISTS working_zones (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -218,18 +216,21 @@ class Schema {
                 continue;
             }
 
+            // 2. Session verification check
+            if (Database::isSchemaVerified($db_name, $table)) {
+                self::$memory_verified[$db_name][$table] = true;
+                continue;
+            }
+
             // Always CREATE TABLE IF NOT EXISTS (safe no-op when table exists)
             $conn->exec($sql);
 
-            // Always run migrations — idempotent PRAGMA checks mean no harm, bypasses session cache
+            // Always run migrations — idempotent PRAGMA checks mean no harm.
             self::runMigrations($conn, $db_name, $table);
 
-            // 2. Session verification check for initial seeding
-            if (!Database::isSchemaVerified($db_name, $table)) {
-                self::seed($conn, $db_name, $table);
-                Database::markSchemaVerified($db_name, $table);
-            }
-
+            // --- Initial Data Seeding (once per session) ---
+            self::seed($conn, $db_name, $table);
+            Database::markSchemaVerified($db_name, $table);
             self::$memory_verified[$db_name][$table] = true;
         }
     }
@@ -294,23 +295,17 @@ class Schema {
             }
         }
         if ($db_name === 'warehouse' && $table === 'location_statuses') {
-            $statuses = [
-                ['Working', '#10b981'],
-                ['Audit', '#f59e0b'],
-                ['Shipping', '#3b82f6'],
-                ['In-Review', '#8b5cf6'],
-                ['Warehoused', '#6366f1'],
-                ['Idle', '#64748b']
-            ];
-            $stmt = $conn->prepare("INSERT OR IGNORE INTO location_statuses (name, color, is_default, location_code) VALUES (?, ?, 1, NULL)");
-            foreach ($statuses as $st) {
-                $chk = $conn->prepare("SELECT COUNT(*) FROM location_statuses WHERE LOWER(name) = LOWER(?)");
-                $chk->execute([$st[0]]);
-                if ($chk->fetchColumn() == 0) {
-                    $stmt->execute([$st[0], $st[1]]);
-                } else {
-                    $conn->prepare("UPDATE location_statuses SET is_default = 1 WHERE LOWER(name) = LOWER(?)")->execute([$st[0]]);
-                }
+            $count = $conn->query("SELECT COUNT(*) FROM location_statuses")->fetchColumn();
+            if ($count == 0) {
+                $statuses = [
+                    ['Working', '#10b981'],
+                    ['Audit', '#f59e0b'],
+                    ['Shipping', '#3b82f6'],
+                    ['In-Review', '#8b5cf6'],
+                    ['Warehoused', '#6366f1'],
+                    ['Idle', '#64748b']
+                ];
+                $stmt = $conn->prepare("INSERT INTO location_statuses (name, color) VALUES (?, ?)");
             }
         }
         if ($db_name === 'warehouse' && $table === 'working_zones') {
@@ -630,18 +625,6 @@ class Schema {
             if (!in_array('working_zone_name', array_column($cols, 'name'))) {
                 $conn->exec("ALTER TABLE locations ADD COLUMN working_zone_name TEXT DEFAULT NULL");
             }
-        }
-
-        if ($db_name === 'warehouse' && $table === 'location_statuses') {
-            $cols = $conn->query("PRAGMA table_info(location_statuses)")->fetchAll(PDO::FETCH_ASSOC);
-            $col_names = array_column($cols, 'name');
-            if (!in_array('is_default', $col_names)) {
-                $conn->exec("ALTER TABLE location_statuses ADD COLUMN is_default INTEGER DEFAULT 0");
-            }
-            if (!in_array('location_code', $col_names)) {
-                $conn->exec("ALTER TABLE location_statuses ADD COLUMN location_code TEXT DEFAULT NULL");
-            }
-            $conn->exec("UPDATE location_statuses SET is_default = 1 WHERE LOWER(name) IN ('working', 'audit', 'shipping', 'in-review', 'warehoused', 'idle')");
         }
 
         // --- Audit & User Indexes ---

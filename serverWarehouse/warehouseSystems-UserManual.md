@@ -18,7 +18,7 @@ Welcome to the **IQA Metal Warehouse Systems** user manual. This guide provides 
 ---
 
 ## 1. Introduction
-**IQA Metal Warehouse Systems** is a high-performance management ecosystem designed for physical warehouse environments. It optimizes hardware intake, label logistics, and customer life cycles through a unified, responsive dashboard.
+**IQA Metal Warehouse Systems** is a high-performance management ecosystem designed for physical warehouse environments. It optimizes hardware intake, label logistics, and customer lifecycles through a unified, responsive dashboard.
 
 ### Key Concepts
 - **Monolith System**: All modules are integrated into a single platform for seamless navigation.
@@ -35,7 +35,7 @@ Welcome to the **IQA Metal Warehouse Systems** user manual. This guide provides 
 3. **Note**: Non-admin users are restricted to the Warehouse Portal, while admins have full access to all modules.
 
 ### Paper Password User System
-PPP a less secure Version of PPP by GRC is implemented, so that way users are able able to remember a number row on a list rather than the actual password.
+PPP a less secure Version of PPP by GRC is implemented, so that way users are able able to remember a mumber row on a list rather than the actual password.
 
 ### The Dashboard
 Upon logging in, you will see the main dashboard (`index.php`). The sidebar or navigation menu allows you to switch between the Core Modules: **Warehouse**, **Leads**, **Orders**, **Calendar**, **Trends**, and **Settings**.

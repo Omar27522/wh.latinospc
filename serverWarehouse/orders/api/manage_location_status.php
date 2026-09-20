@@ -3,9 +3,7 @@
 header('Content-Type: application/json');
 require_once __DIR__ . '/../core/database.php';
 require_once __DIR__ . '/../core/Security.php';
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+session_start();
 
 if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
     http_response_code(401);
@@ -19,14 +17,13 @@ $CANONICAL_DEFAULTS = ['working', 'audit', 'shipping', 'in-review', 'warehoused'
 
 function getStatusPayload($conn_wh, $loc = null) {
     $globals = $conn_wh->query("SELECT MIN(rowid) AS id, name, color, is_default, location_code FROM location_statuses 
-        WHERE location_code IS NULL OR location_code = '' OR location_code = 'GLOBAL' 
+        WHERE is_default = 1 
         GROUP BY name
-        ORDER BY is_default DESC, name ASC")->fetchAll(PDO::FETCH_ASSOC);
+        ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($globals as &$g) {
         $g['is_global'] = true;
     }
-    unset($g);
 
     $custom_status = null;
     if (!empty($loc) && $loc !== 'GLOBAL') {
@@ -52,7 +49,6 @@ function getStatusPayload($conn_wh, $loc = null) {
     foreach ($other_custom as &$oc) {
         $oc['is_global'] = false;
     }
-    unset($oc);
 
     // Build deduplicated combined list for general management view
     $all_distinct = [];

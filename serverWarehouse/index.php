@@ -5,14 +5,6 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once __DIR__ . '/core/Company.php';
 
-// Safe cache-busting asset version helper
-if (!function_exists('asset_ver')) {
-    function asset_ver($relPath) {
-        $full = __DIR__ . '/' . ltrim($relPath, '/\\');
-        return file_exists($full) ? (string)filemtime($full) : '1.0';
-    }
-}
-
 // Redirect to Setup Wizard if system has not been initialized yet
 if (!Company::isSetupComplete()) {
     header("Location: setup/index.php");
@@ -30,10 +22,10 @@ if (!Company::isSetupComplete()) {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <!-- Global Component Styles -->
-    <link rel="stylesheet" href="assets/css/components.css?v=<?= asset_ver('assets/css/components.css') ?>">
+    <link rel="stylesheet" href="assets/css/components.css?v=<?= filemtime('assets/css/components.css') ?>">
 
     <!-- Primary Stylesheet -->
-    <link rel="stylesheet" href="assets/css/portal.css?v=<?= asset_ver('assets/css/portal.css') ?>">
+    <link rel="stylesheet" href="assets/css/portal.css?v=<?= filemtime('assets/css/portal.css') ?>">
     <link rel="icon" type="image/png" href="./orders/assets/icon/smart-home-sensor-wifi-black-outline-25276_1024.png">
 </head>
 
@@ -124,7 +116,7 @@ if (!Company::isSetupComplete()) {
     </footer>
 
     <!-- Global Notifications Engine -->
-    <script src="assets/js/notifications.js?v=<?= asset_ver('assets/js/notifications.js') ?>"></script>
+    <script src="assets/js/notifications.js?v=<?= filemtime('assets/js/notifications.js') ?>"></script>
 </body>
 
 </html>
