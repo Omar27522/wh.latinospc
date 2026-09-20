@@ -10,3 +10,5 @@ serverWarehouse/orders/assets/location_photos
 serverWarehouse/tech/exports/
 serverWarehouse/.venv/
 serverWarehouse/.vscode/
+store/images
+.vscode/

@@ -1,0 +1,41 @@
+/* theme.css */
+:root {
+  --primary-color: #0056b3; /* Darkened for better contrast */
+  --primary-dark: #082d45; /* Standardized to hex */
+
+  --secondary-color: #218838;
+  --secondary-dark: #155724; /* Darker green for AA contrast */
+
+  --text-color: #1a1e21;
+  --light-text: #343a40;
+
+  --dialog-text-highlight: #dee2e6;
+  --dialog-background: rgba(0, 0, 0, 0.9);
+
+  --background: #ffffff;
+  --card-bg: #f8f9fa;
+  --border-radius: 12px;
+  --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  --transition: all 0.25s ease-in-out;
+  --link-bg: rgba(0, 86, 179, 0.1);
+
+  --bannerAndFooter-bg: #daedfb; /* Slightly darker blue for contrast */
+}
+
+[data-theme="dark"] {
+  --primary-color: #00f0ff;
+  --primary-dark: #7000ff;
+  --secondary-color: #ff003c;
+  --secondary-dark: #b3002a;
+  --text-color: #f0f4f8;
+  --light-text: #8b9bb4;
+  --dialog-text-highlight: #fff;
+  --dialog-background: rgba(0, 0, 0, 0.95);
+  --background: #030407;
+  --card-bg: rgba(25, 25, 35, 0.9);
+  --border-radius: 12px;
+  --box-shadow: 0 4px 15px rgba(0, 240, 255, 0.15);
+  --transition: all 0.25s ease-in-out;
+  --link-bg: rgba(0, 240, 255, 0.1);
+  --bannerAndFooter-bg: #0a0e17;
+}
