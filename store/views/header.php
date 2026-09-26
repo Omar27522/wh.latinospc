@@ -1,6 +1,7 @@
 <?php
 // views/header.php
 require_once __DIR__ . '/../core/Tender.php';
+require_once __DIR__ . '/../core/StoreAuth.php';
 
 // Handle customer preview toggle for logged-in tenders
 if (isset($_GET['preview']) && Tender::isLoggedIn()) {
@@ -53,6 +54,22 @@ $activeCategory = strtolower($activeCategory ?? '');
             <a href='category.php?cat=servers' class='<?= $activeCategory === 'servers' ? 'active' : '' ?>'>Servers</a>
             <a href='category.php?cat=parts' class='<?= $activeCategory === 'parts' ? 'active' : '' ?>'>Parts</a>
             <a href='cart.php' class='<?= $activeCategory === 'cart' ? 'active' : '' ?>'>🛒 Cart <span class='cart-pill'><?= $cartCount ?></span></a>
+
+            <?php if (StoreAuth::isCustomer()): ?>
+                <?php $currUser = StoreAuth::current(); ?>
+                <a href='account.php' class='nav-user-btn <?= $activeCategory === 'account' ? 'active' : '' ?>' title='My Customer Account'>
+                    👤 <?= htmlspecialchars($currUser['display_name']) ?>
+                </a>
+            <?php elseif (StoreAuth::isTender()): ?>
+                <?php $currUser = StoreAuth::current(); ?>
+                <a href='account.php' class='nav-user-btn nav-tender-user <?= $activeCategory === 'account' ? 'active' : '' ?>' title='Staff Account'>
+                    🏪 <?= htmlspecialchars($currUser['display_name']) ?>
+                </a>
+            <?php else: ?>
+                <a href='login.php' class='nav-signin-btn' title='Sign into your Customer Account'>
+                    🔑 Sign In
+                </a>
+            <?php endif; ?>
 
             <button type='button' class='theme-toggle-btn' onclick='toggleTheme()' title='Toggle Light / Dark Theme'>
                 ◑

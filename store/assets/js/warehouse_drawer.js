@@ -24,13 +24,15 @@ function openWarehouseModal() {
     }
 }
 
-function closeWarehouseModal(shouldReload = false) {
+let whSessionPostedCount = 0;
+
+function closeWarehouseModal(forceReload = false) {
     const modal = document.getElementById('warehouseModal');
     if (modal) {
         modal.style.display = 'none';
         document.body.style.overflow = '';
     }
-    if (shouldReload) {
+    if (forceReload || whSessionPostedCount > 0) {
         window.location.reload();
     }
 }
@@ -215,14 +217,14 @@ async function submitQuickPost(id) {
         if (data.success) {
             handlePostSuccess(id);
         } else {
-            alert('Failed to post item.');
+            alert(data.error || 'Failed to post item.');
             if (btn) {
                 btn.disabled = false;
                 btn.innerText = '🚀 Quick Post';
             }
         }
     } catch (e) {
-        alert('An error occurred while posting.');
+        alert(e.message || 'An error occurred while posting.');
         if (btn) {
             btn.disabled = false;
             btn.innerText = '🚀 Quick Post';
@@ -252,14 +254,14 @@ async function handleWarehouseFullPost(e, id) {
         if (data.success) {
             handlePostSuccess(id);
         } else {
-            alert('Failed to post item.');
+            alert(data.error || 'Failed to post item.');
             if (btn) {
                 btn.disabled = false;
                 btn.innerText = '✓ Publish Custom Listing';
             }
         }
     } catch (err) {
-        alert('An error occurred while publishing.');
+        alert(err.message || 'An error occurred while publishing.');
         if (btn) {
             btn.disabled = false;
             btn.innerText = '✓ Publish Custom Listing';
@@ -268,6 +270,7 @@ async function handleWarehouseFullPost(e, id) {
 }
 
 function handlePostSuccess(id) {
+    whSessionPostedCount++;
     const card = document.getElementById(`wh-card-${id}`);
     if (card) {
         card.style.transition = 'all 0.4s ease';

@@ -4,14 +4,12 @@ require_once __DIR__ . '/core/Tender.php';
 require_once __DIR__ . '/core/db.php';
 require_once __DIR__ . '/core/Inventory.php';
 
+require_once __DIR__ . '/core/StoreAuth.php';
+
 // 1. Handle Logout
 if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    unset($_SESSION['authenticated']);
-    unset($_SESSION['username']);
-    unset($_SESSION['role']);
-    unset($_SESSION['display_name']);
-    unset($_SESSION['live_preview']);
-    header('Location: index.php');
+    StoreAuth::logout();
+    header('Location: tender_login.php');
     exit;
 }
 
@@ -57,6 +55,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action'])) {
                         echo json_encode(['success' => true, 'id' => $id, 'message' => 'Product posted to store!']);
                         exit;
                     }
+                } else {
+                    if ($isAjax) {
+                        header('Content-Type: application/json');
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'Invalid or missing product ID.']);
+                        exit;
+                    }
                 }
                 break;
 
@@ -66,6 +71,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action'])) {
                     if ($isAjax) {
                         header('Content-Type: application/json');
                         echo json_encode(['success' => true, 'id' => $id, 'message' => 'Product unposted from store.']);
+                        exit;
+                    }
+                } else {
+                    if ($isAjax) {
+                        header('Content-Type: application/json');
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'error' => 'Invalid product ID to unpost.']);
                         exit;
                     }
                 }
@@ -87,7 +99,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action'])) {
                 }
                 break;
         }
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         if ($isAjax) {
             header('Content-Type: application/json');
             http_response_code(500);

@@ -25,5 +25,7 @@
             <p>&copy; <?= date('Y') ?> LatinosPC.com. All rights reserved. By purchasing, you agree to our <a href="terms.php">Terms of Sale and No Return Policy</a>.</p>
         </div>
     </footer>
+
+    <?php require __DIR__ . '/product_modal.php'; ?>
 </body>
 </html>

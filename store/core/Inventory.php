@@ -7,6 +7,7 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/StoreImageProcessor.php';
+require_once __DIR__ . '/UI.php';
 
 class Inventory {
     private $db;
@@ -194,6 +195,7 @@ class Inventory {
             $item = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($item) {
                 $storeLoc = 'STORE-WH-' . (int)$id;
+                $this->ensureLocationExists($storeLoc);
                 $updateLoc = $this->db->prepare("UPDATE inventory SET location_code = ? WHERE id = ?");
                 $updateLoc->execute([$storeLoc, (int)$id]);
                 $this->handlePhotoUpload($storeLoc, $item['sector'], $file);
@@ -223,6 +225,7 @@ class Inventory {
         $qty = (int)($data['quantity'] ?? 1);
 
         $loc = 'STORE-FRONT-' . strtoupper(substr(md5(uniqid()), 0, 6));
+        $this->ensureLocationExists($loc);
 
         $stmt = $this->db->prepare("
             INSERT INTO inventory (user_owner, sector, location_code, brand, model, specs_json, quantity, price, is_posted) 
@@ -251,6 +254,7 @@ class Inventory {
         if (!$loc) {
             $loc = 'STORE-FRONT-' . strtoupper(substr(md5(uniqid()), 0, 6));
         }
+        $this->ensureLocationExists($loc);
 
         if ($qty !== null) {
             $stmt = $this->db->prepare("
@@ -331,23 +335,9 @@ class Inventory {
             $imagePath = self::resolveImagePath($item['image'] ?? '');
             $thumbPath = self::resolveImagePath(!empty($item['thumb']) ? $item['thumb'] : ($item['image'] ?? ''));
 
-            // Parse specs
+            // Parse specs & details using intelligent parser
             $rawSpecs = $item['description'] ?: 'As-is warehouse item.';
-            $displaySpecs = $rawSpecs;
-
-            $decoded = json_decode($rawSpecs, true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                $rawSpecs = json_encode($decoded, JSON_PRETTY_PRINT);
-                $niceDesc = [];
-                foreach ($decoded as $k => $v) {
-                    if (!empty($v) && is_string($v)) {
-                        $niceDesc[] = ucfirst($k) . ": " . $v;
-                    }
-                }
-                if (!empty($niceDesc)) {
-                    $displaySpecs = implode(" | ", $niceDesc);
-                }
-            }
+            $details = UI::parseDetails($rawSpecs);
 
             // Formatted update timestamp
             $dateStr = $item['updated_at'] ?: ($item['created_at'] ?? null);
@@ -362,8 +352,9 @@ class Inventory {
                 'brand' => $item['brand'] ?? '',
                 'model' => $item['model'] ?? '',
                 'title' => $item['title'] ?: 'Unknown Product',
-                'description' => $displaySpecs,
+                'description' => $details['summary'],
                 'raw_specs' => $rawSpecs,
+                'details' => $details,
                 'price' => (float)$item['price'],
                 'quantity' => (int)($item['quantity'] ?? 0),
                 'location_code' => $item['location_code'] ?? '',
@@ -380,6 +371,22 @@ class Inventory {
     }
 
     /**
+     * Ensure a location code exists in the locations table to satisfy foreign key integrity
+     */
+    public function ensureLocationExists($loc) {
+        if (empty($loc)) return;
+        try {
+            $stmt = $this->db->prepare("
+                INSERT OR IGNORE INTO locations (location_code, status, working_zone_name, updated_at) 
+                VALUES (?, 'Storefront', 'Storefront', CURRENT_TIMESTAMP)
+            ");
+            $stmt->execute([$loc]);
+        } catch (Exception $e) {
+            // Ignore if locations table does not exist or duplicate
+        }
+    }
+
+    /**
      * Process image upload via StoreImageProcessor and register in location_photos
      */
     private function handlePhotoUpload($loc, $sector, $file) {
@@ -389,6 +396,9 @@ class Inventory {
                 $rawPath = $result['raw'];
                 $optPath = $result['opt'];
                 $thumbPath = $result['thumb'];
+
+                // Ensure location exists in locations table to satisfy foreign key constraint
+                $this->ensureLocationExists($loc);
 
                 $stmt = $this->db->prepare("SELECT id FROM location_photos WHERE location_code = ?");
                 $stmt->execute([$loc]);
@@ -408,6 +418,8 @@ class Inventory {
                     ");
                     $stmt->execute([$loc, $file['name'], $rawPath, $optPath, $thumbPath, $sector]);
                 }
+            } elseif (!empty($result['error'])) {
+                throw new Exception("Photo processing error: " . $result['error']);
             }
         }
     }

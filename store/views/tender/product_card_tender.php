@@ -85,4 +85,16 @@
             <button type='submit' class='buy-btn update-btn'>Save</button>
         </footer>
     </form>
+
+    <div style="margin-top: 0.75rem; border-top: 1px dashed var(--card-border); padding-top: 0.65rem;">
+        <button type="button" class="view-specs-btn" onclick="openProductModal(<?= (int)$p['id'] ?>)" style="margin-bottom: 0;">
+            <span>👁️ Preview Customer Details Modal</span>
+            <span class="view-specs-arrow">&rarr;</span>
+        </button>
+    </div>
+
+    <!-- Encoded JSON payload for zero-latency modal rendering in Tender mode -->
+    <script type="application/json" id="product-json-<?= (int)$p['id'] ?>">
+        <?= json_encode($p, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>
+    </script>
 </article>

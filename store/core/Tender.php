@@ -76,14 +76,14 @@ class Tender {
     /**
      * URL to log in as a Tender
      */
-    public static function loginUrl($returnUrl = '/store/') {
-        return '../serverWarehouse/orders/core/login.php?return_url=' . urlencode($returnUrl);
+    public static function loginUrl($returnUrl = 'index.php') {
+        return 'tender_login.php?return_url=' . urlencode($returnUrl);
     }
 
     /**
      * URL to log out of Tender privileges
      */
     public static function logoutUrl() {
-        return 'tender_action.php?action=logout';
+        return 'logout.php?role=tender';
     }
 }

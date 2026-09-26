@@ -136,9 +136,15 @@ Future developers and AI agents should implement enhancements according to these
 - [x] **4.0 Tender Role Separation**:
   - Built `core/Tender.php` auth service and `views/tender/tender_bar.php` top bar.
   - Built Customer Preview toggle so tenders can verify live shopper experience without logging out.
-- [x] **4.1 Slide-Out Warehouse Stock Drawer**:
+- [x] **4.1 Migrated Store Auth System (Guest, Customer, Tender)**:
+  - Isolated database `data/db/store_users.db` completely decoupled from warehouse staff tables.
+  - Dedicated Tender Portal login (`store/tender_login.php`) with rate-limiting and security controls.
+  - Dedicated Customer Shopper login (`store/login.php`) and self-registration (`store/register.php`).
+  - Customer Account Dashboard (`store/account.php`) with profile and shipping address management.
+  - Centralized authentication service `core/StoreAuth.php` and universal logout `store/logout.php`.
+- [x] **4.2 Slide-Out Warehouse Stock Drawer**:
   - Built `views/tender/warehouse_drawer.php` with sector filtering, search, and one-click publishing.
-- [x] **4.2 Modular Inline Product Card Editor**:
+- [x] **4.3 Modular Inline Product Card Editor**:
   - Built `views/tender/product_card_tender.php` with non-overlapping action toolbar (Unpost & Delete).
 - [ ] **4.3 Bulk Posting from Warehouse**:
   - Enable multi-select checkboxes inside the Warehouse Stock drawer modal.
