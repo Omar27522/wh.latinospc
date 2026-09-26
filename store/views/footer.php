@@ -1,10 +1,29 @@
 <?php
 // views/footer.php
 ?>
-    <footer style="text-align: center; padding: 2rem; border-top: 1px solid rgba(0,0,0,0.05); margin-top: 4rem; background:var(--bannerAndFooter-bg);">
-        <p style="color: var(--light-text); font-size: 0.9rem;">
-            By purchasing, you agree to our <a href="terms.php" style="color: var(--primary-color); text-decoration: none;">Terms of Sale and No Return Policy</a>.
-        </p>
+    <footer class="store-footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <div class="logos" style="transform: scale(0.95); transform-origin: left center;">
+                    <span class="logos-title"><span>LAt</span>inos<span>PC</span>.com</span>
+                    <small class="logos-tagline">PC, is for Personal Computer</small>
+                </div>
+                <p class="footer-desc">
+                    Certified refurbished computers, enterprise hardware, and clearance electronics inspected by certified technicians.
+                </p>
+            </div>
+            <div class="footer-links">
+                <a href="category.php?cat=laptops">Laptops</a>
+                <a href="category.php?cat=desktops">Desktops</a>
+                <a href="category.php?cat=servers">Servers</a>
+                <a href="category.php?cat=parts">Parts</a>
+                <a href="terms.php">Terms of Sale</a>
+                <a href="https://latinospc.com" target="_blank" rel="noopener">LatinosPC.com &nearr;</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; <?= date('Y') ?> LatinosPC.com. All rights reserved. By purchasing, you agree to our <a href="terms.php">Terms of Sale and No Return Policy</a>.</p>
+        </div>
     </footer>
 </body>
 </html>

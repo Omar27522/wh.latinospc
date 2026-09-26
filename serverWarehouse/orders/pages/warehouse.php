@@ -4,8 +4,10 @@
  * Modularized view coordinating stock management, working zones, and density tracking.
  */
 
-include 'core/warehouse_db.php';
-include 'core/auth.php'; // Session is already started and checked
+require_once __DIR__ . '/../core/warehouse_db.php';
+require_once __DIR__ . '/../core/auth.php'; // Session is already started and checked
+require_once __DIR__ . '/../core/UI.php';
+require_once __DIR__ . '/../core/ApiResponse.php';
 
 $current_user = $_SESSION['username'];
 $selected_sector = $_GET['sector'] ?? 'Laptops';
@@ -16,13 +18,30 @@ $active_zone_name = $_GET['zone'] ?? null;
 $is_zone_view = (!empty($active_zone_name) && empty($selected_loc));
 $is_spreadsheet = ($selected_loc && $selected_loc !== 'GLOBAL') || $is_zone_view;
 
-// Fetch Location Photos if active in single shelf spreadsheet mode
+// Fetch Location Photos if active in single shelf spreadsheet mode or zone view
 $location_photos = [];
+$zone_photos = [];
 if ($selected_loc && $selected_loc !== 'GLOBAL') {
     try {
-        $stmt_lp = $conn_wh->prepare("SELECT * FROM location_photos WHERE location_code = ? AND sector = ? ORDER BY category ASC, created_at DESC");
-        $stmt_lp->execute([$selected_loc, $selected_sector]);
+        if ($selected_sector === 'Master') {
+            $stmt_lp = $conn_wh->prepare("SELECT * FROM location_photos WHERE location_code = ? ORDER BY category ASC, created_at DESC");
+            $stmt_lp->execute([$selected_loc]);
+        } else {
+            $stmt_lp = $conn_wh->prepare("SELECT * FROM location_photos WHERE location_code = ? AND (sector = ? OR sector = '' OR sector IS NULL) ORDER BY category ASC, created_at DESC");
+            $stmt_lp->execute([$selected_loc, $selected_sector]);
+        }
         $location_photos = $stmt_lp->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {}
+} elseif (!empty($active_zone_name)) {
+    try {
+        $stmt_zp = $conn_wh->prepare("
+            SELECT lp.* FROM location_photos lp 
+            JOIN locations l ON lp.location_code = l.location_code 
+            WHERE l.working_zone_name = ?
+            ORDER BY lp.location_code ASC, lp.category ASC, lp.created_at DESC
+        ");
+        $stmt_zp->execute([$active_zone_name]);
+        $zone_photos = $stmt_zp->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {}
 }
 
@@ -42,13 +61,27 @@ $stmt_locs = $conn_wh->query("
 ");
 $existing_locs = $stmt_locs->fetchAll(PDO::FETCH_ASSOC);
 
-$all_statuses = $conn_wh->query("
-    SELECT MIN(id) AS id, name, color, is_default 
-    FROM location_statuses 
-    WHERE is_default = 1
-    GROUP BY name 
-    ORDER BY name ASC
-")->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $all_statuses = $conn_wh->query("
+        SELECT MIN(id) AS id, name, color, is_default 
+        FROM location_statuses 
+        WHERE is_default = 1
+        GROUP BY name 
+        ORDER BY name ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $all_statuses = [];
+}
+if (empty($all_statuses)) {
+    $all_statuses = [
+        ['id' => 1, 'name' => 'Working', 'color' => '#10b981', 'is_default' => 1],
+        ['id' => 2, 'name' => 'Audit', 'color' => '#f59e0b', 'is_default' => 1],
+        ['id' => 3, 'name' => 'Shipping', 'color' => '#3b82f6', 'is_default' => 1],
+        ['id' => 4, 'name' => 'In-Review', 'color' => '#8b5cf6', 'is_default' => 1],
+        ['id' => 5, 'name' => 'Warehoused', 'color' => '#6366f1', 'is_default' => 1],
+        ['id' => 6, 'name' => 'Idle', 'color' => '#64748b', 'is_default' => 1]
+    ];
+}
 $sectors = $conn_wh->query("SELECT * FROM sectors")->fetchAll(PDO::FETCH_ASSOC);
 
 // 3. Fetch Inventory Items
@@ -208,6 +241,12 @@ include __DIR__ . '/partials/warehouse/ajax_view.php';
         <div class="warehouse-container">
             <!-- Sector Navigation Tabs for Zone -->
             <div class="sector-nav" style="margin-top: 5px;">
+                <a href="index.php?view=warehouse&sector=Master&zone=<?= urlencode($active_zone_name) ?>"
+                    class="sector-card <?= $selected_sector === 'Master' ? 'active' : '' ?>"
+                    data-sector="Master">
+                    <span class="sector-icon">🌐</span>
+                    <span class="sector-name">Master</span>
+                </a>
                 <?php foreach ($sectors as $s):
                     $sector_url = "index.php?view=warehouse&sector=" . urlencode($s['name']) . "&zone=" . urlencode($active_zone_name);
                 ?>
@@ -232,6 +271,18 @@ include __DIR__ . '/partials/warehouse/ajax_view.php';
     <?php else: ?>
         <!-- Single Shelf or Global View -->
         <div class="sector-nav">
+            <?php
+            $master_url = "index.php?view=warehouse&sector=Master&loc=" . urlencode($selected_loc);
+            if (!empty($effective_zone)) {
+                $master_url .= "&zone=" . urlencode($effective_zone);
+            }
+            ?>
+            <a href="<?= $master_url ?>"
+                class="sector-card <?= $selected_sector === 'Master' ? 'active' : '' ?>"
+                data-sector="Master">
+                <span class="sector-icon">🌐</span>
+                <span class="sector-name">Master</span>
+            </a>
             <?php foreach ($sectors as $s):
                 $sector_url = "index.php?view=warehouse&sector=" . urlencode($s['name']) . "&loc=" . urlencode($selected_loc);
                 if (!empty($effective_zone)) {

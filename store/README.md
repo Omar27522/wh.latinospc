@@ -1,93 +1,115 @@
-# 🛍️ NEXUS-7 Hardware Storefront (`/store`)
+# 🛍️ LatinosPC Hardware Storefront (`/store`)
 
-The **NEXUS-7 Storefront** is a high-performance, responsive e-commerce application designed specifically for selling certified refurbished, tested, and as-is computer hardware directly from warehouse inventory.
+The **LatinosPC Storefront** is a modular, high-performance e-commerce catalog for selling refurbished and as-is computer hardware directly from the warehouse inventory database.
 
-It bridges real physical warehouse stock from [`data/db/warehouse.db`](file:///c:/Users/Laptop/Documents/wh.latinospc/data/db/warehouse.db) into a streamlined consumer storefront, allowing warehouse staff to effortlessly curate, price, customize, and publish items with full control over photography and listing details.
+It is split cleanly into two distinct actors:
+1. **The Tender**: Authenticated staff/warehouse operator with inventory publishing, pricing, photo editing, and curation privileges.
+2. **The User**: Public customer browsing hardware, adding items to cart, and checking out.
 
 ---
 
-## 🧭 Navigation & Directory Structure
+## 👥 The Two System Roles
+
+### 🏪 1. The Tender (Staff / Privileged Operator)
+- **Authentication**: Checked via `Tender::isLoggedIn()`. Sessions originate from warehouse staff authentication (`serverWarehouse/orders/core/login.php`).
+- **Tender Top Bar (`views/tender/tender_bar.php`)**: A dedicated staff banner above the storefront showing tender identity, live warehouse stock count, preview toggle, and sign out.
+- **Physical Stock Publishing (`views/tender/warehouse_drawer.php`)**: Slide-over drawer to search warehouse inventory and publish directly to the storefront with custom pricing.
+- **Inline Editing (`views/tender/product_card_tender.php`)**: Edit title, category, description, and price inline on cards without navigating to a separate dashboard. Non-overlapping unpost and delete buttons.
+- **Manual Intake (`views/tender/add_item_tender.php`)**: Card for adding custom non-warehouse items with photo upload.
+- **Customer Preview (`?preview=1`)**: Allows the Tender to preview the store exactly as a public shopper sees it (hides edit cards & warehouse drawer) with a 1-click toggle back.
+- **Controller (`tender_action.php`)**: Centralized endpoint for posting, unposting, adding, updating, and deleting items.
+
+### 🛒 2. The User (Public Shopper / Customer)
+- **Clean Customer Header**: The store navigation contains only the store logo, category links, cart counter, and theme toggle.
+- **Public Product Cards (`views/product_card.php`)**: Polished hardware cards displaying title, specs, price, and the "Acquire" (Add to Cart) action.
+- **Cart & Checkout (`cart.php`)**: Session-based cart with real-time stock deduction upon acquisition.
+
+---
+
+## 🧭 Directory Structure
 
 ```
 store/
-├── index.php                 # Main storefront catalog (guest browsing + inline admin editing)
-├── category.php              # Category-filtered catalog (Laptops, Desktops, Servers, Parts)
-├── cart.php                  # Session-backed shopping cart with inventory-backed checkout
-├── admin_action.php          # Central REST/AJAX controller for CRUD & warehouse postings
-├── terms.php                 # UCC-compliant legal terms of sale & warranty disclaimers
-├── store.md                  # Design philosophy & scalable 5-phase roadmap
-├── README.md                 # Primary overview and quickstart (this file)
+├── index.php                 # Storefront catalog (controller + view assembly)
+├── category.php              # Category-filtered view (?cat=laptops, desktops, servers, parts)
+├── cart.php                  # Session-backed shopping cart with checkout stock deduction
+├── tender_action.php         # Central REST/AJAX controller for Tender actions
+├── admin_action.php          # Backwards-compatible forwarder to tender_action.php
+├── terms.php                 # Legal terms of sale & warranty disclaimers
 │
-├── core/                     # Business logic and data access layer
-│   ├── db.php                # SQLite PDO database connection (WAL mode enabled)
-│   ├── Inventory.php         # Product querying, warehouse posting, stock deduction
-│   ├── StoreImageProcessor.php # Dual-tier WebP conversion and thumbnailing engine
-│   ├── Cart.php              # Session-based cart storage and state management
-│   └── UI.php                # Reusable UI component generators
+├── core/                     # Modular Business Logic
+│   ├── Tender.php            # Tender role & session authentication service
+│   ├── db.php                # Database connection (centralized Database::warehouse() or fallback)
+│   ├── Inventory.php         # Product querying, warehouse posting, stock deduction, self-healing
+│   ├── Cart.php              # Session-based shopping cart model
+│   ├── StoreImageProcessor.php # Dual-tier WebP photo optimization & thumbnail generator
+│   └── UI.php                # Template helpers (escaping, currency formatting, badges)
 │
-├── views/                    # Reusable view partials
-│   ├── header.php            # Global navigation, dark/light theme switch, cart badge
-│   ├── footer.php            # Global footer with legal links and copyright
-│   ├── product_card.php      # Modular card supporting guest view & inline admin editing
-│   ├── add_item.php          # Manual item creation card with instant photo preview
-│   └── warehouse_modal.php   # Slide-over modal for browsing and posting warehouse stock
+├── views/                    # Clean, Focused View Partials (<80 lines each)
+│   ├── header.php            # Global customer navbar & theme switch (includes tender_bar if auth)
+│   ├── footer.php            # Global footer with legal links
+│   ├── product_card.php      # Customer product card (delegates to tender card if Tender active)
+│   ├── add_item.php          # Wrapper delegating to views/tender/add_item_tender.php
+│   ├── warehouse_modal.php   # Wrapper delegating to views/tender/warehouse_drawer.php
+│   └── tender/               # Dedicated Privileged Tender Views
+│       ├── tender_bar.php    # Sticky staff toolbar (identity, preview toggle, warehouse drawer trigger)
+│       ├── product_card_tender.php # Inline card editor with non-overlapping action toolbar
+│       ├── add_item_tender.php     # Manual custom item intake card
+│       └── warehouse_drawer.php   # Slide-over warehouse stock publishing drawer
 │
-├── assets/                   # Client-side presentation assets
-│   └── css/
-│       ├── store.css         # Design tokens, typography, dark/light theme variables
-│       └── components.css    # Card styles, warehouse modal drawer, badges, buttons
+├── assets/                   # Static Presentation Assets
+│   ├── css/
+│   │   ├── theme.css         # Design tokens, modern color palettes, light & dark mode variables
+│   │   ├── store.css         # Grid layouts, hero, header & footer styles
+│   │   └── components.css    # Cards, tender top bar, drawer modal, badges, buttons
+│   └── js/
+│       ├── store.js          # Core client scripts: theme toggle, image previews
+│       └── warehouse_drawer.js # Warehouse drawer search, filtering, card rendering & posting
 │
-├── images/                   # Storefront asset storage
-│   ├── placeholder.svg       # Lightweight, zero-dependency SVG fallback image
-│   └── store/                # Dedicated vault for store-uploaded WebP photography
-│
-└── docs/                     # Comprehensive engineering & AI handover documentation
-    ├── ARCHITECTURE.md       # Deep architectural patterns, schema, and API contracts
-    ├── AGENT_HANDOVER.md     # Essential "survival guide", 6 golden rules, and gotchas for AI agents
-    ├── COMPONENTS_GUIDE.md   # Design tokens, view components, and interaction patterns
-    ├── DATABASE_REFERENCE.md # Master SQLite schemas, PRAGMAs, query manual, and migrations
-    ├── RECIPES_AND_EXTENSIONS.md # Cookbooks: Stripe, sales logs, condition grades, categories
-    └── TESTING_AND_VERIFICATION.md # Headless CLI test suites, diagnostics, and pre-completion QA
+└── images/
+    ├── placeholder.svg       # Zero-dependency SVG fallback image
+    └── store/                # Vault for uploaded WebP product photography
 ```
 
 ---
 
-## ⚡ Core Features
+## ⚡ The 5 Golden Rules for Future Agents
 
-1. **Warehouse Inventory Integration**:
-   - Access over 1,200+ authentic warehouse hardware items (Laptops, Desktops, Gaming, Servers, Parts) directly through the **Warehouse Stock** drawer modal.
-   - Search warehouse inventory live with debounce filtering across brand, model, specs, and shelf location codes.
-   - **Quick Post**: Instantly post an item by entering a retail price.
-   - **Custom Post**: Fine-tune quantity allocations, public specs descriptions, category sector, and optionally upload a dedicated storefront photo.
-
-2. **Self-Contained WebP Media Engine**:
-   - All store photo uploads are processed locally by [`StoreImageProcessor.php`](file:///c:/Users/Laptop/Documents/wh.latinospc/store/core/StoreImageProcessor.php).
-   - Generates dual-tier WebP assets: optimized full-resolution (`opt_...webp`, max 1200px) and square thumbnails (`thumb_...webp`, 250px).
-   - Zero coupling to warehouse marketing directories; all store assets reside in [`images/store/`](file:///c:/Users/Laptop/Documents/wh.latinospc/store/images/store/).
-
-3. **Inline Dual-Mode Catalog**:
-   - **Guest View**: Clean, high-converting product cards with category badges, hardware specs, stock counters, and "Add to Cart" actions.
-   - **Admin Edit View**: When logged in as warehouse staff, product cards transform into inline editing forms allowing real-time price updates, quantity changes, description editing, instant photo updates, and an "Unpost" button to retract items back to warehouse stock.
-
-4. **Cart & Inventory-Safe Checkout**:
-   - Shopping cart persists across sessions using [`Cart.php`](file:///c:/Users/Laptop/Documents/wh.latinospc/store/core/Cart.php).
-   - Checkout simulates order processing and atomically decrements inventory stock in SQLite (`UPDATE inventory SET quantity = MAX(0, quantity - ?)`).
-
-5. **Aesthetic Excellence & Theming**:
-   - Built with Vanilla CSS and modern typography (Inter).
-   - Dynamic dark/light theme with zero-flash rendering via inline localStorage checks in [`header.php`](file:///c:/Users/Laptop/Documents/wh.latinospc/store/views/header.php).
-   - Robust `onerror` fallback mechanics preventing browser image fetch loops.
+1. **Role Separation (Tender vs User)**:
+   - Check `Tender::isTenderMode()` when rendering staff controls or inline forms.
+   - Use `Tender::isLoggedIn()` and `Tender::isCustomerPreview()` to distinguish staff viewing public mode.
+2. **Store Photos Belong in `store/images/store/`**:
+   - Always upload photos through `StoreImageProcessor::processUpload($file)` to produce `opt_...webp` and `thumb_...webp`.
+3. **Never Overwrite Shared Warehouse Shelf Photos**:
+   - When posting warehouse stock with a custom photo, use an isolated location code (`STORE-WH-$id`) so other units on that shelf bin keep their photo intact.
+4. **Never `DELETE` Physical Warehouse Records**:
+   - When unposting warehouse items from the storefront, update `is_posted = 0`. Only custom store items (`user_owner = 'STORE'`) may be deleted.
+5. **Keep Views and Logic Decoupled**:
+   - Keep `.php` view templates concise and focused on markup. Put business logic in `core/` and browser interactions in `assets/js/`.
 
 ---
 
-## 📚 Deep Dive Documentation Suite
+## 🛠️ How to Make Common Changes (Cheat Sheet)
 
-For developers and AI agents continuing work on this codebase, refer to the documentation suite in `docs/`:
+### How to Add a New Category:
+1. In `views/header.php`, add a link: `<a href="category.php?cat=monitors">Monitors</a>`.
+2. In `views/tender/add_item_tender.php`, `views/tender/product_card_tender.php`, and `assets/js/warehouse_drawer.js`, add `<option value="Monitors">Monitors</option>`.
 
-1. [**`docs/ARCHITECTURE.md`**](file:///c:/Users/Laptop/Documents/wh.latinospc/store/docs/ARCHITECTURE.md): Database schemas, single sources of truth, image resolution priority, and API specifications.
-2. [**`docs/AGENT_HANDOVER.md`**](file:///c:/Users/Laptop/Documents/wh.latinospc/store/docs/AGENT_HANDOVER.md): The **AI Agent Survival Guide** covering the 6 Golden Rules, safety boundaries, and common pitfalls.
-3. [**`docs/COMPONENTS_GUIDE.md`**](file:///c:/Users/Laptop/Documents/wh.latinospc/store/docs/COMPONENTS_GUIDE.md): Detailed reference for UI tokens, CSS variables, modal components, and client-side interactions.
-4. [**`docs/DATABASE_REFERENCE.md`**](file:///c:/Users/Laptop/Documents/wh.latinospc/store/docs/DATABASE_REFERENCE.md): Complete SQLite schema breakdown, PRAGMA concurrency rules, index optimization, and query manual.
-5. [**`docs/RECIPES_AND_EXTENSIONS.md`**](file:///c:/Users/Laptop/Documents/wh.latinospc/store/docs/RECIPES_AND_EXTENSIONS.md): Production blueprints for Stripe payments, order logging, condition grades, and category creation.
-6. [**`docs/TESTING_AND_VERIFICATION.md`**](file:///c:/Users/Laptop/Documents/wh.latinospc/store/docs/TESTING_AND_VERIFICATION.md): Headless CLI testing scripts, image processor verification, and agent pre-completion checklist.
+### How to Add a New Tender Feature (e.g. Bulk Price Discounting):
+1. In `core/Tender.php`: check permissions with `Tender::isAdmin()`.
+2. In `tender_action.php`: add the action case `bulk_discount`.
+3. In `views/tender/tender_bar.php`: add the button trigger to the tender bar.
+
+### How to Test Changes:
+Run the PHP CLI syntax checks:
+```powershell
+php -l store/index.php
+php -l store/category.php
+php -l store/cart.php
+php -l store/tender_action.php
+php -l store/admin_action.php
+php -l store/core/Tender.php
+php -l store/core/Inventory.php
+```
+Run `php -f store/index.php` to verify error-free execution.
 

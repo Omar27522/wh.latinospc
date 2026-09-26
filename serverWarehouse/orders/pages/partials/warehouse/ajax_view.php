@@ -4,6 +4,9 @@
  * Renders inventory list rows (both spreadsheet and standard table format) for AppSync / live updates.
  */
 
+require_once dirname(__DIR__, 3) . '/core/UI.php';
+require_once dirname(__DIR__, 3) . '/core/ApiResponse.php';
+
 if (UI::is_ajax()) {
     if (ob_get_level() > 0) {
         ob_clean();
@@ -35,11 +38,14 @@ if (UI::is_ajax()) {
 
             if ($is_spreadsheet): ?>
                 <tr class="inventory-card summary-row" data-id="<?= $item['id'] ?>"
+                    data-sector="<?= htmlspecialchars($item['sector'] ?? $selected_sector) ?>"
+                    data-location="<?= htmlspecialchars($item['location_code'] ?? '') ?>"
                     data-brand="<?= htmlspecialchars($item['brand']) ?>"
                     data-model="<?= htmlspecialchars($item['model']) ?>"
+                    data-qty="<?= (int)$item['quantity'] ?>"
                     data-price="<?= htmlspecialchars($item['price'] ?? '0.00') ?>"
                     data-specs='<?= htmlspecialchars($item['specs_json'], ENT_QUOTES) ?>'
-                    data-search="<?= htmlspecialchars(strtolower($item['brand'] . ' ' . $item['model'] . ' ' . ($item['location_code'] ?? '') . ' ' . ($specs['cpu'] ?? '') . ' ' . ($specs['ram'] ?? '') . ' ' . ($specs['storage'] ?? '') . ' ' . ($specs['notes'] ?? ''))) ?>">
+                    data-search="<?= htmlspecialchars(strtolower($item['brand'] . ' ' . $item['model'] . ' ' . ($item['location_code'] ?? '') . ' ' . ($item['sector'] ?? '') . ' ' . ($specs['cpu'] ?? '') . ' ' . ($specs['ram'] ?? '') . ' ' . ($specs['storage'] ?? '') . ' ' . ($specs['series'] ?? '') . ' ' . ($specs['notes'] ?? '') . ' ' . ($specs['condition'] ?? ''))) ?>">
 
                     <?php if ($show_location_col): ?>
                         <td class="editable-cell" data-field="location_code">
@@ -108,14 +114,14 @@ if (UI::is_ajax()) {
                     <td class="editable-cell" data-field="condition">
                         <input type="text" class="cell-input" value="<?= htmlspecialchars($specs['condition'] ?? 'Used') ?>" list="condition-options-list" placeholder="...">
                     </td>
-                    <td class="editable-cell" data-field="notes">
-                        <input type="text" class="cell-input" value="<?= htmlspecialchars($specs['notes'] ?? '') ?>" placeholder="...">
+                    <td class="editable-cell numeric" data-field="quantity">
+                        <input type="number" step="1" class="cell-input text-center font-bold" value="<?= (int)$item['quantity'] ?>">
                     </td>
                     <td class="editable-cell numeric" data-field="price">
                         <input type="number" step="any" class="cell-input text-right" value="<?= htmlspecialchars($item['price'] ?? '0.00') ?>">
                     </td>
-                    <td class="editable-cell numeric" data-field="quantity">
-                        <input type="number" step="1" class="cell-input text-center font-bold" value="<?= (int)$item['quantity'] ?>">
+                    <td class="editable-cell" data-field="notes">
+                        <input type="text" class="cell-input" value="<?= htmlspecialchars($specs['notes'] ?? '') ?>" placeholder="...">
                     </td>
                     <td style="text-align:right;">
                         <div class="action-buttons">
@@ -155,32 +161,25 @@ if (UI::is_ajax()) {
                 ?>
                 <tr class="inventory-card <?= ($highlight_id && $item['id'] == $highlight_id) ? 'highlight-row' : '' ?>"
                     data-id="<?= $item['id'] ?>" data-sector-theme="<?= htmlspecialchars($item['sector']) ?>"
+                    data-sector="<?= htmlspecialchars($item['sector']) ?>"
+                    data-location="<?= htmlspecialchars($item['location_code'] ?? '') ?>"
                     data-brand="<?= htmlspecialchars($item['brand']) ?>" data-model="<?= htmlspecialchars($item['model']) ?>"
+                    data-qty="<?= (int)$item['quantity'] ?>"
                     data-price="<?= htmlspecialchars($item['price'] ?? '0.00') ?>" data-created-date="<?= $created_date_only ?>"
                     data-created-time="<?= $created_time_only ?>" data-specs='<?= htmlspecialchars($item['specs_json'], ENT_QUOTES) ?>'
-                    data-search="<?= htmlspecialchars(strtolower($item['brand'] . ' ' . $item['model'] . ' ' . $item['location_code'] . ' ' . ($specs['cpu'] ?? '') . ' ' . ($specs['cpu_gen'] ?? '') . ' ' . ($specs['ram'] ?? '') . ' ' . ($specs['storage'] ?? '') . ' ' . ($specs['series'] ?? '') . ' ' . ($specs['notes'] ?? ''))) ?>">
+                    data-search="<?= htmlspecialchars(strtolower($item['brand'] . ' ' . $item['model'] . ' ' . ($item['location_code'] ?? '') . ' ' . ($item['sector'] ?? '') . ' ' . ($specs['cpu'] ?? '') . ' ' . ($specs['cpu_gen'] ?? '') . ' ' . ($specs['ram'] ?? '') . ' ' . ($specs['storage'] ?? '') . ' ' . ($specs['series'] ?? '') . ' ' . ($specs['notes'] ?? '') . ' ' . ($specs['condition'] ?? ''))) ?>">
 
                     <td style="text-align: center;"><input type="checkbox" class="row-select"></td>
-                    <td><span class="location-tag"><?= htmlspecialchars($item['location_code']) ?></span></td>
+                    <td class="col-type"><span class="location-tag"><?= htmlspecialchars($item['location_code']) ?></span></td>
 
-                    <?php if ($selected_sector === 'Master'): ?>
-                        <td>
-                            <a href="index.php?view=warehouse&sector=<?= urlencode($item['sector']) ?>&loc=<?= urlencode($item['location_code']) ?>"
-                                style="text-decoration: none;">
-                                <span
-                                    class="sector-badge sector-<?= strtolower($item['sector']) ?>"><?= htmlspecialchars($item['sector']) ?></span>
-                            </a>
-                        </td>
-                    <?php endif; ?>
-
-                    <td>
+                    <td class="col-main">
                         <div class="cell-make"><?= htmlspecialchars($item['brand']) ?></div>
                         <div class="cell-model"><?= htmlspecialchars($item['model']) ?></div>
                     </td>
 
-                    <td><span class="qty-pill"><?= (int) $item['quantity'] ?></span></td>
+                    <td class="col-qty"><span class="qty-pill"><?= (int) $item['quantity'] ?></span></td>
 
-                    <td><span class="price-pill">$<?= number_format($item['price'] ?? 0, 0) ?></span></td>
+                    <td class="col-price"><span class="price-pill">$<?= number_format($item['price'] ?? 0, 0) ?></span></td>
 
                     <?php if ($selected_sector === 'Laptops'): ?>
                         <td>
@@ -214,41 +213,76 @@ if (UI::is_ajax()) {
                         <td>
                             <div class="spec-value"><?= htmlspecialchars($specs['cpu_gen'] ?? '-') ?></div>
                         </td>
-                    <?php elseif ($selected_sector === 'Master'): ?>
-                        <td>
-                            <div class="master-specs-wrapper">
-                                <?php if ($item['sector'] === 'Laptops'): ?>
-                                    <?php if (!empty($specs['cpu'])): ?>
-                                        <span class="spec-tag cpu" title="CPU">💻 <?= htmlspecialchars($specs['cpu']) ?><?php if (!empty($specs['gen']) && $specs['gen'] !== '-'): ?> <small>(<?= htmlspecialchars($specs['gen']) ?>)</small><?php endif; ?></span>
-                                    <?php endif; ?>
-                                    <?php if (!empty($specs['ram']) || !empty($specs['storage'])): ?>
-                                        <span class="spec-tag memory" title="RAM / Storage">💾 <?= htmlspecialchars(($specs['ram'] ?? '-') . ' / ' . ($specs['storage'] ?? '-')) ?></span>
-                                    <?php endif; ?>
-                                    <?php if (!empty($specs['series'])): ?>
-                                        <span class="spec-tag series" title="Series">🏷️ <?= htmlspecialchars($specs['series']) ?></span>
-                                    <?php endif; ?>
-                                <?php elseif ($item['sector'] === 'Gaming'): ?>
-                                    <?php if (!empty($specs['category'])): ?>
-                                        <span class="spec-tag category" title="Category">🎮 <?= htmlspecialchars($specs['category']) ?></span>
-                                    <?php endif; ?>
-                                    <?php if (!empty($specs['gpu'])): ?>
-                                        <span class="spec-tag gpu" title="GPU">⚡ <?= htmlspecialchars($specs['gpu']) ?></span>
-                                    <?php endif; ?>
-                                    <?php if (!empty($specs['ram']) || !empty($specs['storage'])): ?>
-                                        <span class="spec-tag memory" title="RAM / Storage">💾 <?= htmlspecialchars(($specs['ram'] ?? '-') . ' / ' . ($specs['storage'] ?? '-')) ?></span>
-                                    <?php endif; ?>
-                                <?php elseif ($item['sector'] === 'Desktops'): ?>
-                                    <?php if (!empty($specs['cpu_gen'])): ?>
-                                        <span class="spec-tag cpu" title="CPU/Gen">🖥️ <?= htmlspecialchars($specs['cpu_gen']) ?></span>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <span class="spec-tag empty">-</span>
-                                <?php endif; ?>
-                            </div>
+                    <?php elseif ($selected_sector === 'Master'):
+                        $core_primary = '';
+                        $core_secondary = '';
+
+                        if ($item['sector'] === 'Laptops') {
+                            $cpu_str = $specs['cpu'] ?? '';
+                            if (!empty($specs['gen']) && $specs['gen'] !== '-') {
+                                $cpu_str .= ($cpu_str ? ' (' . $specs['gen'] . ')' : $specs['gen']);
+                            }
+                            $core_primary = $cpu_str ?: ($specs['series'] ?? '-');
+
+                            $sec_parts = [];
+                            if (!empty($specs['series']) && $core_primary !== $specs['series']) {
+                                $sec_parts[] = $specs['series'];
+                            }
+                            $ram_val = trim($specs['ram'] ?? '');
+                            $storage_val = trim($specs['storage'] ?? '');
+                            $has_ram = ($ram_val !== '' && $ram_val !== '-');
+                            $has_storage = ($storage_val !== '' && $storage_val !== '-');
+                            if ($has_ram && $has_storage) {
+                                $sec_parts[] = $ram_val . ' / ' . $storage_val;
+                            } elseif ($has_ram) {
+                                $sec_parts[] = $ram_val;
+                            } elseif ($has_storage) {
+                                $sec_parts[] = $storage_val;
+                            }
+                            $core_secondary = implode(' • ', $sec_parts);
+                        } elseif ($item['sector'] === 'Gaming') {
+                            $core_primary = $specs['gpu'] ?? ($specs['category'] ?? '-');
+                            $sec_parts = [];
+                            if (!empty($specs['cpu']) && $specs['cpu'] !== '-') $sec_parts[] = $specs['cpu'];
+                            $ram_val = trim($specs['ram'] ?? '');
+                            $storage_val = trim($specs['storage'] ?? '');
+                            $has_ram = ($ram_val !== '' && $ram_val !== '-');
+                            $has_storage = ($storage_val !== '' && $storage_val !== '-');
+                            if ($has_ram && $has_storage) {
+                                $sec_parts[] = $ram_val . ' / ' . $storage_val;
+                            } elseif ($has_ram) {
+                                $sec_parts[] = $ram_val;
+                            } elseif ($has_storage) {
+                                $sec_parts[] = $storage_val;
+                            }
+                            $core_secondary = implode(' • ', $sec_parts);
+                        } elseif ($item['sector'] === 'Desktops') {
+                            $core_primary = $specs['cpu_gen'] ?? ($specs['cpu'] ?? '-');
+                            $ram_val = trim($specs['ram'] ?? '');
+                            $storage_val = trim($specs['storage'] ?? '');
+                            $has_ram = ($ram_val !== '' && $ram_val !== '-');
+                            $has_storage = ($storage_val !== '' && $storage_val !== '-');
+                            if ($has_ram && $has_storage) {
+                                $core_secondary = $ram_val . ' / ' . $storage_val;
+                            } elseif ($has_ram) {
+                                $core_secondary = $ram_val;
+                            } elseif ($has_storage) {
+                                $core_secondary = $storage_val;
+                            }
+                        } else {
+                            $core_primary = $specs['type'] ?? ($specs['voltage'] ?? '-');
+                            $core_secondary = (!empty($specs['type']) && !empty($specs['voltage']) && $specs['voltage'] !== '-') ? $specs['voltage'] : '';
+                        }
+                    ?>
+                        <td class="col-specs">
+                            <div class="cell-make"><?= htmlspecialchars($core_primary ?: '-') ?></div>
+                            <?php if (!empty($core_secondary)): ?>
+                                <div class="cell-model"><?= htmlspecialchars($core_secondary) ?></div>
+                            <?php endif; ?>
                         </td>
                     <?php endif; ?>
 
-                    <td>
+                    <td class="col-notes">
                         <div class="notes-cell-wrapper">
                             <div class="status-row">
                                 <?php if (!empty($item['status'])): ?>
@@ -271,7 +305,7 @@ if (UI::is_ajax()) {
                         </div>
                     </td>
 
-                    <td>
+                    <td class="col-log">
                         <div class="staff-log-wrapper">
                             <div class="log-entry">
                                 <span class="log-user">👤 <?= htmlspecialchars($item['user_owner']) ?></span>
@@ -287,7 +321,24 @@ if (UI::is_ajax()) {
                         </div>
                     </td>
 
-                    <td>
+                    <?php if ($selected_sector === 'Master'):
+                        $target_loc = !empty($selected_loc) ? $selected_loc : ($item['location_code'] ?? 'GLOBAL');
+                        $sector_href = "index.php?view=warehouse&sector=" . urlencode($item['sector']) . "&loc=" . urlencode($target_loc);
+                        if (!empty($active_zone_name)) {
+                            $sector_href .= "&zone=" . urlencode($active_zone_name);
+                        }
+                    ?>
+                        <td class="col-sector">
+                            <a href="<?= $sector_href ?>"
+                                style="text-decoration: none;"
+                                title="Filter <?= htmlspecialchars($item['sector']) ?> in <?= htmlspecialchars($target_loc) ?>">
+                                <span
+                                    class="sector-badge sector-<?= strtolower($item['sector']) ?>"><?= htmlspecialchars($item['sector']) ?></span>
+                            </a>
+                        </td>
+                    <?php endif; ?>
+
+                    <td class="col-actions">
                         <div class="row-actions">
                             <button type="button" class="row-action-btn btn-edit" onclick='editWarehouseItem(<?= json_encode($item) ?>)'
                                 title="Edit Entry">📝</button>
@@ -376,14 +427,14 @@ if (UI::is_ajax()) {
                 <td class="editable-cell" data-field="condition">
                     <input type="text" class="cell-input" list="condition-options-list" placeholder="Condition...">
                 </td>
-                <td class="editable-cell" data-field="notes">
-                    <input type="text" class="cell-input" placeholder="Notes...">
+                <td class="editable-cell numeric" data-field="quantity">
+                    <input type="number" step="1" class="cell-input text-center font-bold" placeholder="Qty...">
                 </td>
                 <td class="editable-cell numeric" data-field="price">
                     <input type="number" step="any" class="cell-input text-right" placeholder="Price...">
                 </td>
-                <td class="editable-cell numeric" data-field="quantity">
-                    <input type="number" step="1" class="cell-input text-center font-bold" placeholder="Qty...">
+                <td class="editable-cell" data-field="notes">
+                    <input type="text" class="cell-input" placeholder="Notes...">
                 </td>
                 <td style="text-align:right;">
                     <div class="action-buttons" style="justify-content: flex-end;">
@@ -394,9 +445,62 @@ if (UI::is_ajax()) {
         <?php endif; ?>
     <?php endif;
     $table_html = ob_get_clean();
-    header('Content-Type: application/json');
-    echo json_encode([
+
+    $response_payload = [
         'inventory-list' => $table_html
-    ]);
-    exit();
+    ];
+
+    if (($selected_loc && $selected_loc !== 'GLOBAL') || !empty($active_zone_name)) {
+        $displayed_photos = ($selected_loc && $selected_loc !== 'GLOBAL') ? ($location_photos ?? []) : ($zone_photos ?? []);
+
+        $zone_locs = [];
+        if (!empty($active_zone_name) && !empty($existing_locs)) {
+            foreach ($existing_locs as $el) {
+                if (($el['working_zone_name'] ?? 'General') === $active_zone_name) {
+                    $zone_locs[] = $el['location_code'];
+                }
+            }
+        }
+        $default_cam_loc = ($selected_loc && $selected_loc !== 'GLOBAL') 
+            ? $selected_loc 
+            : (!empty($zone_locs) ? $zone_locs[0] : 'W1-L1');
+        $avail_locs_json = !empty($zone_locs) ? json_encode(array_values($zone_locs)) : json_encode([$default_cam_loc]);
+
+        ob_start();
+        if (empty($displayed_photos)): ?>
+            <div style="color: var(--text-dim); font-size: 0.85rem; padding: 0.5rem 0;">No photographs uploaded for this location yet. Click <strong>Add / Snap Photo</strong> to capture or upload.</div>
+        <?php else: ?>
+            <?php foreach ($displayed_photos as $photo): ?>
+                <div class="photo-card-mini" data-photo-id="<?= $photo['id'] ?>" style="flex: 0 0 110px; text-align: center; border: 1px solid var(--border-color); border-radius: 8px; padding: 4px; background: var(--bg-body); position: relative;">
+                    <div class="img-preview-container" style="position: relative; width: 100%; height: 75px; overflow: hidden; border-radius: 6px;">
+                        <img src="<?= htmlspecialchars($photo['thumbnail_path']) ?>" alt="<?= htmlspecialchars($photo['original_filename']) ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                        <div class="hover-preview" style="display: none; position: fixed; z-index: 2100; width: 450px; height: 350px; background: rgba(0,0,0,0.95); border: 2px solid var(--accent-color); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); overflow: hidden; pointer-events: none;">
+                            <img src="<?= htmlspecialchars($photo['optimized_path']) ?>" style="width: 100%; height: 100%; object-fit: contain;">
+                        </div>
+                    </div>
+                    <div style="font-size: 0.7rem; font-weight: 700; margin-top: 4px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="<?= htmlspecialchars($photo['location_code']) ?> - <?= htmlspecialchars($photo['category']) ?>">
+                        <?= htmlspecialchars($photo['location_code']) ?> (<?= htmlspecialchars($photo['category']) ?>)
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 8px; margin-top: 4px;">
+                        <a href="download_archive.php?id=<?= $photo['id'] ?>" class="btn-icon-tiny" title="Download Raw Original" style="font-size: 0.75rem; text-decoration: none;">📥</a>
+                        <button type="button" onclick="deleteLocationPhotoAjax(<?= $photo['id'] ?>, this)" style="background: none; border: none; padding: 0; cursor: pointer; font-size: 0.75rem;" title="Delete Photo">🗑️</button>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+
+        <!-- Add Photo trigger in gallery -->
+        <button type="button" onclick="CameraUploader.open({ locationCode: '<?= htmlspecialchars($default_cam_loc, ENT_QUOTES) ?>', sector: '<?= htmlspecialchars($selected_sector, ENT_QUOTES) ?>', availableLocations: <?= htmlspecialchars($avail_locs_json, ENT_QUOTES) ?>, onSuccess: () => { if (window.AppSync) AppSync.sync('inventory-list', true); } })" style="flex: 0 0 100px; height: 110px; border: 2px dashed var(--border-color); border-radius: 8px; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-dim); transition: all 0.2s;">
+            <span style="font-size: 1.5rem;">📷</span>
+            <span style="font-size: 0.75rem; font-weight: 600;">Camera / Add</span>
+        </button>
+        <?php
+        $photos_gallery_html = ob_get_clean();
+
+        $response_payload['location-photos-gallery'] = $photos_gallery_html;
+        $response_payload['photo-count-badge'] = count($displayed_photos) . ' Photos';
+    }
+
+    ApiResponse::json($response_payload);
 }
+

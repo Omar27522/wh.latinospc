@@ -4,24 +4,9 @@
  * Handles management of hardware and marketing images.
  */
 
-if (!function_exists('get_marketing_db')) {
-    if (file_exists(__DIR__ . '/../../config.php')) {
-        require_once __DIR__ . '/../../config.php';
-    }
-    if (file_exists(__DIR__ . '/../../includes/db.php')) {
-        require_once __DIR__ . '/../../includes/db.php';
-    }
-}
-
-// If accessed directly in the browser instead of via front controller, redirect to router
-if (isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === realpath(__FILE__)) {
-    header("Location: ../../index.php?page=photo_bucket");
-    exit;
-}
-
-$marketingDb = isset($marketingDb) ? $marketingDb : (function_exists('get_marketing_db') ? get_marketing_db() : null);
-$warehouseDb = isset($warehouseDb) ? $warehouseDb : (function_exists('get_warehouse_db') ? get_warehouse_db() : null);
-$labelsDb = isset($labelsDb) ? $labelsDb : (function_exists('get_labels_db') ? get_labels_db() : null);
+$marketingDb = get_marketing_db();
+$warehouseDb = get_warehouse_db();
+$labelsDb = get_labels_db();
 
 require_once __DIR__ . '/../../includes/photo_processor.php';
 $processor = new PhotoProcessor($marketingDb);

@@ -8,14 +8,15 @@ $inventory = new Inventory($db);
 $products = $inventory->getProducts();
 
 $pageTitle = 'Home';
-$activeCategory = '';
+$activeCategory = 'all';
 
 require __DIR__ . '/views/header.php';
 ?>
 
 <div class="hero">
+    <div class="hero-badge">⚡ Direct Warehouse Clearance</div>
     <h1>AS-IS WAREHOUSE CLEARANCE</h1>
-    <p>Deeply discounted secondary-market computer hardware. All items are sold strictly as-is, where-is, with no returns or warranties.</p>
+    <p>Discounted secondary-market laptops, desktop PCs, and enterprise hardware. Curated directly from physical warehouse inventory.</p>
 </div>
 
 <div class="store-container">

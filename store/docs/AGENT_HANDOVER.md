@@ -1,7 +1,7 @@
 # 🧠 AI Technical Handover & Agent Guide (`/store`)
 
 > [!NOTE]
-> This document is written specifically for AI agents (and developers) tasked with maintaining, extending, or debugging the **NEXUS-7 Storefront**. Read this guide before making any changes.
+> This document is written specifically for AI agents (and developers) tasked with maintaining, extending, or debugging the **LatinosPC Storefront (`latinospc.com`)**. Read this guide before making any changes.
 
 ---
 

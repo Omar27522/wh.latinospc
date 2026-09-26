@@ -24,12 +24,12 @@ function verify_admin_password_input($input_password, $admin_record)
     $clean_password = preg_replace('/\s+/', '', $input_password);
     $verified = false;
     if (!empty($admin_record['ppp_sequence_key'])) {
-        $verified = password_verify($input_password . $admin_record['ppp_sequence_key'], $admin_record['password'])
-            || password_verify($clean_password . $admin_record['ppp_sequence_key'], $admin_record['password']);
+        $verified = password_verify($input_password . $admin_record['ppp_sequence_key'], $admin_record['password'] ?? '')
+            || password_verify($clean_password . $admin_record['ppp_sequence_key'], $admin_record['password'] ?? '');
     }
     if (!$verified) {
-        $verified = password_verify($input_password, $admin_record['password'])
-            || password_verify($clean_password, $admin_record['password']);
+        $verified = password_verify($input_password, $admin_record['password'] ?? '')
+            || password_verify($clean_password, $admin_record['password'] ?? '');
     }
     return $verified;
 }
@@ -103,7 +103,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
             $_SESSION['authenticated'] = true;
             $_SESSION['username'] = $admin_record['username'] ?? 'admin';
             $_SESSION['role'] = 'Admin';
-            $_SESSION['display_name'] = $admin_record['display_name'] ?: 'Administrator';
+            $_SESSION['display_name'] = !empty($admin_record['display_name']) ? $admin_record['display_name'] : 'Administrator';
 
             header("Location: index.php?reconfigure=1");
             exit();
@@ -250,6 +250,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action']) && 
 
                     // Re-lock the reconfigure session so subsequent visits require authentication
                     unset($_SESSION['setup_reconfigure_unlocked']);
+                    $_SESSION['authenticated'] = true;
+                    $_SESSION['username'] = $admin_user;
+                    $_SESSION['role'] = 'Admin';
+                    $_SESSION['display_name'] = $admin_name;
                     $success = true;
                 } catch (Exception $e) {
                     $error = 'Failed to save configuration: ' . $e->getMessage();
@@ -270,7 +274,7 @@ $curr_tagline = Company::getTagline();
 // Existing admin account PPP defaults
 $existing_seq_key = $admin_record['ppp_sequence_key'] ?? '';
 $existing_row_index = (int) ($admin_record['ppp_row_index'] ?? 0);
-$existing_pass_len = (int) ($admin_record['ppp_password_len'] ?: 30);
+$existing_pass_len = !empty($admin_record['ppp_password_len']) ? (int) $admin_record['ppp_password_len'] : 30;
 
 if (empty($existing_seq_key)) {
     $existing_seq_key = Security::generate_ppp_key();

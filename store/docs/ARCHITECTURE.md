@@ -1,6 +1,6 @@
 # 🏗️ Storefront Technical Architecture (`/store`)
 
-This document outlines the software architecture, database design, image processing pipeline, and API contracts for the **NEXUS-7 Storefront**.
+This document outlines the software architecture, database design, image processing pipeline, and API contracts for the **LatinosPC Storefront (`latinospc.com`)**.
 
 ---
 

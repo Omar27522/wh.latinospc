@@ -1,5 +1,10 @@
 <?php
 // core/Inventory.php
+/**
+ * LatinosPC Store - Core Inventory Service
+ * Manages storefront catalog, warehouse synchronization, and product media.
+ */
+
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/StoreImageProcessor.php';
 
@@ -8,13 +13,32 @@ class Inventory {
 
     public function __construct($db) {
         $this->db = $db;
+        $this->ensureSchema();
     }
 
     /**
-     * Get products, optionally filtered by category
+     * Self-healing database schema verification
+     * Guarantees is_posted column and index exist without manual migrations.
      */
+    private function ensureSchema() {
+        try {
+            $cols = $this->db->query("PRAGMA table_info(inventory)")->fetchAll(PDO::FETCH_ASSOC);
+            $names = array_column($cols, 'name');
+            if (!empty($names) && !in_array('is_posted', $names)) {
+                $this->db->exec("ALTER TABLE inventory ADD COLUMN is_posted INTEGER DEFAULT 0");
+                $this->db->exec("CREATE INDEX IF NOT EXISTS idx_inv_is_posted ON inventory(is_posted)");
+                $this->db->exec("UPDATE inventory SET is_posted = 1 WHERE user_owner = 'STORE'");
+            }
+        } catch (Exception $e) {
+            // Silently continue if database or table is not ready
+        }
+    }
+
     /**
-     * Get products, optionally filtered by category (only returns posted products)
+     * Fetch active storefront products (posted items or store-created products)
+     *
+     * @param string|null $category Filter by hardware sector (e.g. 'Laptops', 'Desktops')
+     * @return array Formatted product cards
      */
     public function getProducts($category = null) {
         $sql = "
@@ -40,7 +64,7 @@ class Inventory {
         ";
 
         $params = [];
-        if ($category) {
+        if (!empty($category)) {
             $sql .= " AND i.sector LIKE ?";
             $params[] = '%' . $category . '%';
         }
@@ -55,7 +79,11 @@ class Inventory {
     }
 
     /**
-     * Get available warehouse products ready for posting to the store
+     * Get available physical warehouse products ready for posting to the storefront
+     *
+     * @param string|null $sector Optional category filter
+     * @param string|null $search Optional search term across brand, model, specs, shelf
+     * @return array Formatted warehouse products
      */
     public function getWarehouseAvailableProducts($sector = null, $search = null) {
         $sql = "
@@ -78,6 +106,7 @@ class Inventory {
             FROM inventory i
             LEFT JOIN location_photos p ON i.location_code = p.location_code
             WHERE (i.is_posted = 0 OR i.is_posted IS NULL)
+              AND (i.user_owner != 'STORE' OR i.user_owner IS NULL)
               AND i.quantity > 0
         ";
 
@@ -105,15 +134,24 @@ class Inventory {
     }
 
     /**
-     * Get count of warehouse products available to be posted
+     * Count unposted physical warehouse items in stock
      */
     public function getWarehouseStockCount() {
-        $stmt = $this->db->query("SELECT COUNT(*) FROM inventory WHERE (is_posted = 0 OR is_posted IS NULL) AND quantity > 0");
-        return (int)($stmt->fetchColumn() ?: 0);
+        try {
+            $stmt = $this->db->query("
+                SELECT COUNT(*) FROM inventory 
+                WHERE (is_posted = 0 OR is_posted IS NULL) 
+                  AND (user_owner != 'STORE' OR user_owner IS NULL) 
+                  AND quantity > 0
+            ");
+            return (int)($stmt->fetchColumn() ?: 0);
+        } catch (Exception $e) {
+            return 0;
+        }
     }
 
     /**
-     * Post a warehouse product to the store storefront with full customization options
+     * Publish a warehouse product to the store with customized retail pricing and specs
      */
     public function postFromWarehouse($id, $data = [], $file = null) {
         $fields = ["is_posted = 1", "updated_at = CURRENT_TIMESTAMP"];
@@ -127,11 +165,11 @@ class Inventory {
             $fields[] = "quantity = ?";
             $params[] = (int)$data['quantity'];
         }
-        if (isset($data['brand']) && $data['brand'] !== '') {
+        if (!empty($data['brand'])) {
             $fields[] = "brand = ?";
             $params[] = trim($data['brand']);
         }
-        if (isset($data['model']) && $data['model'] !== '') {
+        if (!empty($data['model'])) {
             $fields[] = "model = ?";
             $params[] = trim($data['model']);
         }
@@ -139,7 +177,7 @@ class Inventory {
             $fields[] = "specs_json = ?";
             $params[] = $data['specs_json'];
         }
-        if (isset($data['sector']) && $data['sector'] !== '') {
+        if (!empty($data['sector'])) {
             $fields[] = "sector = ?";
             $params[] = trim($data['sector']);
         }
@@ -149,16 +187,15 @@ class Inventory {
         $stmt = $this->db->prepare($sql);
         $res = $stmt->execute($params);
 
+        // If custom photo uploaded, isolate location code to prevent overwriting shared shelf photos
         if ($file && $file['error'] === UPLOAD_ERR_OK) {
             $stmt = $this->db->prepare("SELECT location_code, sector FROM inventory WHERE id = ?");
             $stmt->execute([(int)$id]);
             $item = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($item) {
-                // Ensure posted item has an isolated store location code so physical warehouse shelf photos are untouched
                 $storeLoc = 'STORE-WH-' . (int)$id;
                 $updateLoc = $this->db->prepare("UPDATE inventory SET location_code = ? WHERE id = ?");
                 $updateLoc->execute([$storeLoc, (int)$id]);
-
                 $this->handlePhotoUpload($storeLoc, $item['sector'], $file);
             }
         }
@@ -167,7 +204,7 @@ class Inventory {
     }
 
     /**
-     * Unpost a product from the storefront (leaves warehouse inventory intact)
+     * Unpost a product from storefront (leaves physical warehouse inventory untouched)
      */
     public function unpostProduct($id) {
         $stmt = $this->db->prepare("UPDATE inventory SET is_posted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
@@ -175,42 +212,118 @@ class Inventory {
     }
 
     /**
-     * Resolve image path safely with store-local preference, warehouse fallback, and placeholder
+     * Create a new manual custom store item
      */
-    public static function resolveImagePath($path, $type = 'image') {
+    public function add($data, $file = null) {
+        $brand = trim($data['brand'] ?? '');
+        $model = trim($data['model'] ?? '');
+        $specs = $data['specs_json'] ?? '';
+        $sector = $data['sector'] ?? 'Laptops';
+        $price = (float)($data['price'] ?? 0);
+        $qty = (int)($data['quantity'] ?? 1);
+
+        $loc = 'STORE-FRONT-' . strtoupper(substr(md5(uniqid()), 0, 6));
+
+        $stmt = $this->db->prepare("
+            INSERT INTO inventory (user_owner, sector, location_code, brand, model, specs_json, quantity, price, is_posted) 
+            VALUES ('STORE', ?, ?, ?, ?, ?, ?, ?, 1)
+        ");
+        $stmt->execute([$sector, $loc, $brand, $model, $specs, $qty, $price]);
+
+        $this->handlePhotoUpload($loc, $sector, $file);
+    }
+
+    /**
+     * Update an existing product
+     */
+    public function update($id, $data, $file = null) {
+        $brand = trim($data['brand'] ?? '');
+        $model = trim($data['model'] ?? '');
+        $specs = $data['specs_json'] ?? '';
+        $sector = $data['sector'] ?? 'Laptops';
+        $price = (float)($data['price'] ?? 0);
+        $qty = isset($data['quantity']) ? (int)$data['quantity'] : null;
+
+        $stmt = $this->db->prepare("SELECT location_code FROM inventory WHERE id = ?");
+        $stmt->execute([$id]);
+        $loc = $stmt->fetchColumn();
+        
+        if (!$loc) {
+            $loc = 'STORE-FRONT-' . strtoupper(substr(md5(uniqid()), 0, 6));
+        }
+
+        if ($qty !== null) {
+            $stmt = $this->db->prepare("
+                UPDATE inventory 
+                SET sector = ?, location_code = ?, brand = ?, model = ?, specs_json = ?, price = ?, quantity = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ");
+            $stmt->execute([$sector, $loc, $brand, $model, $specs, $price, $qty, $id]);
+        } else {
+            $stmt = $this->db->prepare("
+                UPDATE inventory 
+                SET sector = ?, location_code = ?, brand = ?, model = ?, specs_json = ?, price = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ");
+            $stmt->execute([$sector, $loc, $brand, $model, $specs, $price, $id]);
+        }
+
+        $this->handlePhotoUpload($loc, $sector, $file);
+    }
+
+    /**
+     * Deduct product quantity on purchase
+     */
+    public function reduceQuantity($id, $amount) {
+        $stmt = $this->db->prepare("UPDATE inventory SET quantity = MAX(0, quantity - ?) WHERE id = ?");
+        $stmt->execute([(int)$amount, $id]);
+    }
+
+    /**
+     * Delete product (only used for custom store items)
+     */
+    public function delete($id) {
+        $stmt = $this->db->prepare("DELETE FROM inventory WHERE id = ?");
+        $stmt->execute([$id]);
+    }
+
+    /**
+     * Resolve image URL safely with store-local preference, warehouse fallback, and SVG placeholder
+     */
+    public static function resolveImagePath($path) {
         if (empty($path)) {
             return 'images/placeholder.svg';
         }
 
         $cleanPath = ltrim(str_replace('\\', '/', $path), '/');
 
-        // 1. Check if file is directly in store/ directory (e.g. images/store/... or images/...)
+        // 1. Direct path in store/
         if (file_exists(__DIR__ . '/../' . $cleanPath)) {
             return $cleanPath;
         }
 
-        // 2. Check if file is in store/images/store/ by basename
+        // 2. Basename in store/images/store/
         $storeBase = basename($cleanPath);
         if (file_exists(__DIR__ . '/../images/store/' . $storeBase)) {
             return 'images/store/' . $storeBase;
         }
 
-        // 3. Fallback: check marketing asset bucket for warehouse-synced photography
+        // 3. Fallback: serverWarehouse marketing photo bucket
         if (file_exists(__DIR__ . '/../../serverWarehouse/marketing/' . $cleanPath)) {
             return '../serverWarehouse/marketing/' . $cleanPath;
         }
 
-        // 4. Fallback: check orders location_photos
+        // 4. Fallback: serverWarehouse orders location_photos
         if (file_exists(__DIR__ . '/../../serverWarehouse/orders/' . $cleanPath)) {
             return '../serverWarehouse/orders/' . $cleanPath;
         }
 
-        // 5. Fallback placeholder
+        // 5. Default placeholder
         return 'images/placeholder.svg';
     }
 
     /**
-     * Format the raw DB results into nice array
+     * Format raw database records into standardized product models
      */
     private function formatProducts($items) {
         $products = [];
@@ -218,30 +331,30 @@ class Inventory {
             $imagePath = self::resolveImagePath($item['image'] ?? '');
             $thumbPath = self::resolveImagePath(!empty($item['thumb']) ? $item['thumb'] : ($item['image'] ?? ''));
 
-            // Raw specs for editing
+            // Parse specs
             $rawSpecs = $item['description'] ?: 'As-is warehouse item.';
             $displaySpecs = $rawSpecs;
 
-            // Formatted specs for display
             $decoded = json_decode($rawSpecs, true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                 $rawSpecs = json_encode($decoded, JSON_PRETTY_PRINT);
-                $nice_desc = [];
+                $niceDesc = [];
                 foreach ($decoded as $k => $v) {
-                    if (!empty($v) && is_string($v)) $nice_desc[] = ucfirst($k) . ": " . $v;
+                    if (!empty($v) && is_string($v)) {
+                        $niceDesc[] = ucfirst($k) . ": " . $v;
+                    }
                 }
-                if (!empty($nice_desc)) {
-                    $displaySpecs = implode(" | ", $nice_desc);
+                if (!empty($niceDesc)) {
+                    $displaySpecs = implode(" | ", $niceDesc);
                 }
             }
-            
+
+            // Formatted update timestamp
             $dateStr = $item['updated_at'] ?: ($item['created_at'] ?? null);
             $lastUpdate = '';
             if ($dateStr) {
                 $time = strtotime($dateStr);
-                $year = date('Y', $time);
-                $currentYear = date('Y');
-                $lastUpdate = ($year == $currentYear) ? date('n/j', $time) : date('n/j/Y', $time);
+                $lastUpdate = (date('Y', $time) === date('Y')) ? date('n/j', $time) : date('n/j/Y', $time);
             }
 
             $products[$item['id']] = [
@@ -267,72 +380,7 @@ class Inventory {
     }
 
     /**
-     * Add a new product (manual store item)
-     */
-    public function add($data, $file = null) {
-        $brand = $data['brand'] ?? '';
-        $model = $data['model'] ?? '';
-        $specs = $data['specs_json'] ?? '';
-        $sector = $data['sector'] ?? 'Laptops';
-        $price = (float)($data['price'] ?? 0);
-        $qty = (int)($data['quantity'] ?? 1);
-
-        $loc = 'STORE-FRONT-' . strtoupper(substr(md5(uniqid()), 0, 6));
-
-        $stmt = $this->db->prepare("INSERT INTO inventory (user_owner, sector, location_code, brand, model, specs_json, quantity, price, is_posted) VALUES ('STORE', ?, ?, ?, ?, ?, ?, ?, 1)");
-        $stmt->execute([$sector, $loc, $brand, $model, $specs, $qty, $price]);
-
-        $this->handlePhotoUpload($loc, $sector, $file);
-    }
-
-    /**
-     * Update an existing product
-     */
-    public function update($id, $data, $file = null) {
-        $brand = $data['brand'] ?? '';
-        $model = $data['model'] ?? '';
-        $specs = $data['specs_json'] ?? '';
-        $sector = $data['sector'] ?? 'Laptops';
-        $price = (float)($data['price'] ?? 0);
-        $qty = isset($data['quantity']) ? (int)$data['quantity'] : null;
-
-        $stmt = $this->db->prepare("SELECT location_code FROM inventory WHERE id = ?");
-        $stmt->execute([$id]);
-        $loc = $stmt->fetchColumn();
-        
-        if (!$loc) {
-            $loc = 'STORE-FRONT-' . strtoupper(substr(md5(uniqid()), 0, 6));
-        }
-
-        if ($qty !== null) {
-            $stmt = $this->db->prepare("UPDATE inventory SET sector = ?, location_code = ?, brand = ?, model = ?, specs_json = ?, price = ?, quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-            $stmt->execute([$sector, $loc, $brand, $model, $specs, $price, $qty, $id]);
-        } else {
-            $stmt = $this->db->prepare("UPDATE inventory SET sector = ?, location_code = ?, brand = ?, model = ?, specs_json = ?, price = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-            $stmt->execute([$sector, $loc, $brand, $model, $specs, $price, $id]);
-        }
-
-        $this->handlePhotoUpload($loc, $sector, $file);
-    }
-
-    /**
-     * Deduct quantity after purchase
-     */
-    public function reduceQuantity($id, $amount) {
-        $stmt = $this->db->prepare("UPDATE inventory SET quantity = MAX(0, quantity - ?) WHERE id = ?");
-        $stmt->execute([(int)$amount, $id]);
-    }
-
-    /**
-     * Delete a product
-     */
-    public function delete($id) {
-        $stmt = $this->db->prepare("DELETE FROM inventory WHERE id = ?");
-        $stmt->execute([$id]);
-    }
-
-    /**
-     * Handle the photo upload logic using StoreImageProcessor in store/images/store/
+     * Process image upload via StoreImageProcessor and register in location_photos
      */
     private function handlePhotoUpload($loc, $sector, $file) {
         if ($file && $file['error'] === UPLOAD_ERR_OK) {
@@ -344,13 +392,20 @@ class Inventory {
 
                 $stmt = $this->db->prepare("SELECT id FROM location_photos WHERE location_code = ?");
                 $stmt->execute([$loc]);
-                $photo_id = $stmt->fetchColumn();
+                $photoId = $stmt->fetchColumn();
 
-                if ($photo_id) {
-                    $stmt = $this->db->prepare("UPDATE location_photos SET original_filename = ?, optimized_path = ?, thumbnail_path = ?, archive_path = ?, archive_driver = 'store_local', uploaded_by = 'STORE', sector = ? WHERE id = ?");
-                    $stmt->execute([$file['name'], $optPath, $thumbPath, $rawPath, $sector, $photo_id]);
+                if ($photoId) {
+                    $stmt = $this->db->prepare("
+                        UPDATE location_photos 
+                        SET original_filename = ?, optimized_path = ?, thumbnail_path = ?, archive_path = ?, archive_driver = 'store_local', uploaded_by = 'STORE', sector = ? 
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$file['name'], $optPath, $thumbPath, $rawPath, $sector, $photoId]);
                 } else {
-                    $stmt = $this->db->prepare("INSERT INTO location_photos (location_code, original_filename, archive_driver, archive_path, optimized_path, thumbnail_path, uploaded_by, sector) VALUES (?, ?, 'store_local', ?, ?, ?, 'STORE', ?)");
+                    $stmt = $this->db->prepare("
+                        INSERT INTO location_photos (location_code, original_filename, archive_driver, archive_path, optimized_path, thumbnail_path, uploaded_by, sector) 
+                        VALUES (?, ?, 'store_local', ?, ?, ?, 'STORE', ?)
+                    ");
                     $stmt->execute([$loc, $file['name'], $rawPath, $optPath, $thumbPath, $sector]);
                 }
             }

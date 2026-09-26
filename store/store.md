@@ -1,6 +1,6 @@
 # 🚀 Storefront Design Philosophy & Scalable Improvement Roadmap (`store.md`)
 
-This document establishes the **core design philosophy** and the **phased scalability roadmap** for the **NEXUS-7 Storefront**. All future enhancements, UI redesigns, and feature additions must adhere to these foundational principles and proceed through these structured phases.
+This document establishes the **core design philosophy** and the **phased scalability roadmap** for the **LatinosPC Storefront (`latinospc.com`)**. All future enhancements, UI redesigns, and feature additions must adhere to these foundational principles and proceed through these structured phases.
 
 ---
 
@@ -8,7 +8,7 @@ This document establishes the **core design philosophy** and the **phased scalab
 
 > *"Good design is as little design as possible."*
 
-These five axioms guide every UI decision, component layout, and user flow:
+These six axioms guide every UI decision, component layout, and user flow:
 
 ### 1. Good design is as little design as possible
 - **Principle**: Focus strictly on the essential features that provide real value to the customer and the warehouse operator.
@@ -32,7 +32,7 @@ These five axioms guide every UI decision, component layout, and user flow:
 - **Principle**: Maintain global consistency through predefined, mathematically consistent tokens.
 - **Application**:
   - Use an **8pt / 4pt grid system** for all margins, paddings, and component heights (4px, 8px, 12px, 16px, 24px, 32px, 48px).
-  - Use CSS custom properties (`var(--primary-color)`, `var(--card-bg)`, `var(--border-color)`) defined in [`store/assets/css/store.css`](file:///c:/Users/Laptop/Documents/wh.latinospc/store/assets/css/store.css).
+  - Use CSS custom properties (`var(--primary-color)`, `var(--card-bg)`, `var(--card-border)`) defined in [`store/assets/css/theme.css`](file:///c:/Users/Laptop/Documents/wh.latinospc/store/assets/css/theme.css).
   - Never introduce hardcoded hex colors or arbitrary pixel values in component views.
 
 ### 5. Hierarchy is everything
@@ -44,6 +44,13 @@ These five axioms guide every UI decision, component layout, and user flow:
   - **Level 4 (Action)**: Primary CTA Button ("Acquire" / "Add to Cart") with clear interactive feedback.
   - If a page or card isn't scannable in under 2 seconds, adjust contrast and weight until the user's eye lands naturally on the title, price, and CTA.
 
+### 6. Strict Separation of Roles: The Tender vs. The User
+- **Principle**: The storefront serves two distinct audiences with non-conflicting interfaces.
+- **Application**:
+  - **The Tender**: Authenticated staff operator with inventory publishing, pricing, photo editing, and curation privileges. Staff controls live in the sticky top Tender Bar (`views/tender/tender_bar.php`) and inline card editors (`views/tender/product_card_tender.php`).
+  - **The User**: Public customer browsing the store, adding items to cart, and checking out. Customers see zero staff buttons, edit forms, or administrative overhead.
+  - Always query `Tender::isTenderMode()` to guard privileged views. Use `Tender::isCustomerPreview()` so tenders can verify the live shopper experience with a single click.
+
 ---
 
 ## 🗺️ Phased Scalability Roadmap
@@ -52,13 +59,13 @@ Future developers and AI agents should implement enhancements according to these
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  Phase 1: Layout & Spacing Polish (Immediate UX)       │
+│  Phase 1: Layout, Spacing & Brand Polish [COMPLETED]   │
 ├────────────────────────────────────────────────────────┤
 │  Phase 2: Live Filter, Search & Sorting Experience     │
 ├────────────────────────────────────────────────────────┤
 │  Phase 3: Conversion, Mini-Cart & Frictionless Flow    │
 ├────────────────────────────────────────────────────────┤
-│  Phase 4: Warehouse Operator Power Tools (Admin)       │
+│  Phase 4: Warehouse Operator Power Tools [IN PROGRESS] │
 ├────────────────────────────────────────────────────────┤
 │  Phase 5: Automated Payments & Multi-Channel Sync      │
 └────────────────────────────────────────────────────────┘
@@ -66,23 +73,26 @@ Future developers and AI agents should implement enhancements according to these
 
 ---
 
-### Phase 1: Layout & Spacing Polish (Immediate UX)
-*Objective: Elevate visual elegance, scannability, and responsiveness using the 4pt/8pt grid.*
+### Phase 1: Layout, Spacing & Brand Polish (COMPLETED)
+*Objective: Elevate visual elegance, scannability, responsiveness, and authentic LatinosPC branding.*
 
-- [ ] **1.1 Spacing & Padding Standardization**:
-  - Align card padding to a uniform 20px (or 24px on desktop).
-  - Set grid gaps to a strict `clamp(16px, 2vw, 28px)`.
-  - Enforce consistent 1:1 square or 4:3 aspect ratios for all product image wrappers to prevent layout shifts.
-- [ ] **1.2 Visual Hierarchy Refinement**:
-  - Increase price typography scale to 1.35rem with bold 700 weight for immediate clarity.
-  - Format specifications into modern pill chips (e.g. `[ i5-8350U ]` `[ 16GB RAM ]` `[ 256GB SSD ]`) rather than long unformatted text strings.
-- [ ] **1.3 Micro-Animations & Tactile Feedback**:
-  - Add subtle translateY hover elevation (`transform: translateY(-3px)`) with smooth shadow transition on cards.
-  - Add active press states to primary buttons (`transform: scale(0.98)`).
-  - Introduce skeleton loading placeholders during live warehouse search requests.
-- [ ] **1.4 Mobile Ergonomics**:
-  - Optimize sticky header and category pill navigation for horizontal swipe on mobile screens.
-  - Position modal drawer close buttons and actions within natural thumb-reach zones.
+- [x] **1.1 Spacing & Padding Standardization**:
+  - Uniform card padding (1.25rem / 20px).
+  - Strict responsive grid gap (`clamp(1.5rem, 2.5vw, 2.5rem)`).
+  - Consistent 4:3 aspect ratios for product image wrappers to prevent layout shifts.
+- [x] **1.2 Visual Hierarchy Refinement**:
+  - Increased price typography scale to 1.35rem with bold 800 weight for immediate clarity.
+  - High-contrast card title, muted spec text, and distinct CTA buttons.
+- [x] **1.3 Micro-Animations & Tactile Feedback**:
+  - Subtle card hover elevation (`transform: translateY(-4px)`) with smooth drop shadow transition.
+  - Active button states and smooth modal drawer slide animations.
+- [x] **1.4 Mobile Ergonomics**:
+  - Responsive header with wrapping nav links and stacked logo on small screens.
+  - Touch-friendly drawer close button and thumb-reach action buttons.
+- [x] **1.5 Authentic LatinosPC Branding**:
+  - Installed official `manuscript` font from `latinospc.com` into `assets/fonts/font.ttf`.
+  - Replicated exact `LAtinosPC.com` logo with blue accenting and *"PC, is for Personal Computer"* tagline.
+  - Branded footer with legal links and external link to `latinospc.com`.
 
 ---
 
@@ -120,18 +130,23 @@ Future developers and AI agents should implement enhancements according to these
 
 ---
 
-### Phase 4: Warehouse Operator Power Tools (Admin Mode)
+### Phase 4: Warehouse Operator Power Tools (Tender Mode)
 *Objective: Empower warehouse staff to list and manage inventory with maximum speed.*
 
-- [ ] **4.1 Bulk Posting from Warehouse**:
+- [x] **4.0 Tender Role Separation**:
+  - Built `core/Tender.php` auth service and `views/tender/tender_bar.php` top bar.
+  - Built Customer Preview toggle so tenders can verify live shopper experience without logging out.
+- [x] **4.1 Slide-Out Warehouse Stock Drawer**:
+  - Built `views/tender/warehouse_drawer.php` with sector filtering, search, and one-click publishing.
+- [x] **4.2 Modular Inline Product Card Editor**:
+  - Built `views/tender/product_card_tender.php` with non-overlapping action toolbar (Unpost & Delete).
+- [ ] **4.3 Bulk Posting from Warehouse**:
   - Enable multi-select checkboxes inside the Warehouse Stock drawer modal.
   - Allow posting multiple units simultaneously with a shared sector or markup rule.
-- [ ] **4.2 One-Click Specs Auto-Formatter**:
+- [ ] **4.4 One-Click Specs Auto-Formatter**:
   - Automatically parse incoming raw warehouse intake strings and structure them into clean key-value pairs (CPU, RAM, Storage, Screen Size).
-- [ ] **4.3 Drag-and-Drop Photo Uploader**:
+- [ ] **4.5 Drag-and-Drop Photo Uploader**:
   - Allow dragging an image file directly onto any product card in edit mode for instant upload and WebP optimization.
-- [ ] **4.4 Quick Price Suggestion Engine**:
-  - Query `pricing_rules` table based on CPU generation and category to suggest an optimal market retail price when posting.
 
 ---
 
@@ -152,34 +167,42 @@ Future developers and AI agents should implement enhancements according to these
 
 ## 📐 Design Tokens Quick Reference
 
-When writing CSS or markup, strictly utilize these design system variables:
+All styles must strictly adhere to the tokens defined in [`store/assets/css/theme.css`](file:///c:/Users/Laptop/Documents/wh.latinospc/store/assets/css/theme.css):
 
 ```css
-/* Color Roles */
---primary-color: #0066ff;     /* Brand accent, primary buttons, focus rings */
---primary-dark: #0052cc;      /* Headings, hover accents */
---secondary-color: #00f2fe;   /* Cyan accents, badge highlights */
---bg-color: #f8faff;          /* Canvas background (light) / #0b0f19 (dark) */
---card-bg: #ffffff;           /* Elevated surface (light) / #111827 (dark) */
---text-color: #1a1a1a;        /* High-contrast body & titles */
---light-text: #666666;        /* Secondary specs, labels, metadata */
---border-color: rgba(0,0,0,0.08); /* Subtle dividers and input strokes */
+/* Brand & Accent Colors */
+--primary-color: #0284c7;        /* Cobalt / Vibrant Blue */
+--primary-hover: #0369a1;        /* Darker Blue on hover */
+--primary-dark: #0f172a;         /* Deep Navy / Slate 900 */
+--primary-light: #e0f2fe;        /* Soft Blue tint */
 
-/* 4pt / 8pt Spacing Scale */
---space-1: 4px;
---space-2: 8px;
---space-3: 12px;
---space-4: 16px;
---space-5: 20px;
---space-6: 24px;
---space-8: 32px;
---space-12: 48px;
+--accent-emerald: #10b981;       /* In-Stock / Success / Checkout */
+--accent-amber: #f59e0b;         /* Warning / Unpost */
+--accent-rose: #ef4444;          /* Delete / Danger */
 
-/* Border Radius */
---radius-sm: 4px;
---radius-md: 8px;
---radius-lg: 12px;
---radius-pill: 9999px;
+/* Surfaces & Backgrounds */
+--background: #f8fafc;           /* Canvas background (slate-50 light / #0b1120 dark) */
+--card-bg: #ffffff;              /* Elevated card surface (#111827 dark) */
+--card-border: #e2e8f0;          /* Subtle card divider (#1e293b dark) */
+--header-bg: rgba(255, 255, 255, 0.85); /* Glassmorphic header surface */
+--footer-bg: #f1f5f9;            /* Footer surface (#0b1120 dark) */
+
+/* Typography */
+--text-color: #0f172a;           /* Body & headings (#f8fafc dark) */
+--light-text: #475569;           /* Secondary specs & labels (#94a3b8 dark) */
+--dim-text: #94a3b8;             /* Timestamps & minor metadata */
+
+/* Inputs & Form Controls */
+--input-bg: #f8fafc;             /* Input background (#0f172a dark) */
+--input-border: #cbd5e1;         /* Input stroke (#334155 dark) */
+--input-focus: #0284c7;          /* Input focus outline */
+
+/* Elevation & Shapes */
+--border-radius: 16px;           /* Cards & modals */
+--border-radius-sm: 8px;         /* Buttons & inputs */
+--border-radius-pill: 9999px;    /* Badges & pill buttons */
+--box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
+--box-shadow-hover: 0 16px 32px -4px rgba(15, 23, 42, 0.12);
 ```
 
 ---
@@ -187,6 +210,7 @@ When writing CSS or markup, strictly utilize these design system variables:
 ## 🛠️ Instructions for Future AI Agents
 
 1. **Check the Current Phase**: Before beginning a sprint, check which phase items are currently active or uncompleted.
-2. **Never Break Decoupling**: Keep all storefront logic inside `/store`. Never modify `/serverWarehouse`.
-3. **Preserve User Choice**: Maintain the human operator's ability to customize prices, quantities, and descriptions when posting warehouse stock.
-4. **Follow the 6 Golden Rules**: Refer to [`store/docs/AGENT_HANDOVER.md`](file:///c:/Users/Laptop/Documents/wh.latinospc/store/docs/AGENT_HANDOVER.md) for technical gotchas and safeguards.
+2. **Follow Role Decoupling**: Keep customer views free from staff clutter. Use `Tender::isTenderMode()` for all privileged controls.
+3. **Never Break Decoupling**: Keep all storefront logic inside `/store`. Never modify `/serverWarehouse`.
+4. **Preserve User Choice**: Maintain the human operator's ability to customize prices, quantities, and descriptions when posting warehouse stock.
+5. **Follow the 6 Golden Rules**: Refer to [`store/docs/AGENT_HANDOVER.md`](file:///c:/Users/Laptop/Documents/wh.latinospc/store/docs/AGENT_HANDOVER.md) for technical gotchas and safeguards.

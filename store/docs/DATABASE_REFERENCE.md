@@ -1,6 +1,6 @@
 # 🗄️ SQLite Database Reference & Query Manual (`/store`)
 
-This document provides a comprehensive reference for the SQLite database powering the **NEXUS-7 Storefront** and its interface with the physical warehouse database at [`data/db/warehouse.db`](file:///c:/Users/Laptop/Documents/wh.latinospc/data/db/warehouse.db).
+This document provides a comprehensive reference for the SQLite database powering the **LatinosPC Storefront (`latinospc.com`)** and its interface with the physical warehouse database at [`data/db/warehouse.db`](file:///c:/Users/Laptop/Documents/wh.latinospc/data/db/warehouse.db).
 
 ---
 

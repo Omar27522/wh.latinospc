@@ -58,7 +58,7 @@ require __DIR__ . '/views/header.php';
     <p style="text-align:center;"><em>Last Updated: September 2026</em></p>
 
     <h2>1. DEFINITIONS & SCOPE</h2>
-    <p>By completing a purchase, submitting payment, or acquiring hardware from <strong>[Company Name]</strong> ("Seller"), you ("Buyer") explicitly agree to these Terms of Sale in full.</p>
+    <p>By completing a purchase, submitting payment, or acquiring hardware from <strong>LatinosPC.com</strong> ("Seller"), you ("Buyer") explicitly agree to these Terms of Sale in full.</p>
     <ul>
         <li><strong>"As-Is" / "Where-Is"</strong>: All items are sold in their present condition, with all faults, known and unknown, without any guarantees of future performance.</li>
         <li><strong>"Equipment"</strong>: Any used computer hardware, components, untested units, or parts sold by Seller.</li>
@@ -95,13 +95,13 @@ require __DIR__ . '/views/header.php';
     <p>Seller strictly disclaims any liability for indirect, punitive, incidental, special, or consequential damages, including loss of profits, downtime, data loss, or third-party claims, arising out of the sale or use of the Equipment.</p>
 
     <h2>9. THIRD-PARTY OEM DISCLAIMER</h2>
-    <p><strong>[Company Name]</strong> is an independent secondary market reseller. We are NOT affiliated with, sponsored by, endorsed by, or authorized by any original equipment manufacturers (OEMs) such as Dell, HP, Lenovo, Apple, or Microsoft. All trademarks are the property of their respective owners.</p>
+    <p><strong>LatinosPC.com</strong> is an independent secondary market reseller. We are NOT affiliated with, sponsored by, endorsed by, or authorized by any original equipment manufacturers (OEMs) such as Dell, HP, Lenovo, Apple, or Microsoft. All trademarks are the property of their respective owners.</p>
 
     <h2>10. GOVERNING LAW & JURISDICTION</h2>
-    <p>These Terms of Sale shall be governed by and construed in accordance with the laws of <strong>[State/Jurisdiction]</strong>. Any legal action or proceeding arising under this Agreement shall be brought exclusively in the courts located in <strong>[State/Jurisdiction]</strong>.</p>
+    <p>These Terms of Sale shall be governed by and construed in accordance with the laws of <strong>the State of California, County of Los Angeles, USA</strong>. Any legal action or proceeding arising under this Agreement shall be brought exclusively in the courts located in <strong>Los Angeles County, California</strong>.</p>
     
     <h2>11. BINDING ARBITRATION & CLASS ACTION WAIVER</h2>
-    <p>Any dispute, claim, or controversy arising out of or relating to this Agreement or the breach, termination, enforcement, interpretation, or validity thereof, including the determination of the scope or applicability of this agreement to arbitrate, shall be determined by binding arbitration in <strong>[State/Jurisdiction]</strong> before one arbitrator. The arbitration shall be administered by the American Arbitration Association (AAA) pursuant to its Commercial Arbitration Rules and Mediation Procedures.</p>
+    <p>Any dispute, claim, or controversy arising out of or relating to this Agreement or the breach, termination, enforcement, interpretation, or validity thereof, including the determination of the scope or applicability of this agreement to arbitrate, shall be determined by binding arbitration in <strong>Los Angeles County, California</strong> before one arbitrator. The arbitration shall be administered by the American Arbitration Association (AAA) pursuant to its Commercial Arbitration Rules and Mediation Procedures.</p>
     <p><strong>Class Action Waiver:</strong> The Buyer and Seller agree that any arbitration shall be conducted in their individual capacities only and not as a class action or other representative action. The Buyer expressly waives the right to file a class action or seek relief on a class basis.</p>
     
     <h2>12. SEVERABILITY</h2>

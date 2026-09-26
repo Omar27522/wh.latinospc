@@ -6,7 +6,7 @@ require_once __DIR__ . '/core/Inventory.php';
 $cart = new Cart();
 
 // Handle POST actions (add to cart, update qty, remove)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['action'])) {
     $action = $_POST['action'];
     $product_id = (int)($_POST['product_id'] ?? 0);
     

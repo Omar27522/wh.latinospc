@@ -1,6 +1,6 @@
 # 🎨 Storefront Components & UI Design Guide (`/store`)
 
-This guide covers the frontend design tokens, theme implementation, reusable view components, and client-side interactions across the **NEXUS-7 Storefront**.
+This guide covers the frontend design tokens, theme implementation, reusable view components, and client-side interactions across the **LatinosPC Storefront (`latinospc.com`)**.
 
 ---
 
@@ -39,7 +39,7 @@ To prevent flash-of-unstyled-content (FOUC) when loading in dark mode, an inline
 ## 2. Reusable View Components
 
 ### 2.1 Global Header (`views/header.php`)
-- **Logo**: Branded `NEXUS-7` header with high-tech badge styling.
+- **Logo**: Branded `LatinosPC.com` header with manuscript font styling and "PC, is for Personal Computer" tagline.
 - **Category Navigation**: Quick filters for All, Laptops, Desktops, Servers, Parts.
 - **Theme Switcher**: Floating button that toggles `data-theme="light|dark"` and persists choice to `localStorage`.
 - **Cart Badge**: Real-time item counter connected to `Cart::getTotalQuantity()`.

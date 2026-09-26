@@ -1,6 +1,6 @@
 # 📖 Storefront Extension Recipes & Developer Cookbook (`/store`)
 
-This guide provides tested, step-by-step implementation blueprints ("recipes") for future developers and AI agents extending the **NEXUS-7 Storefront**.
+This guide provides tested, step-by-step implementation blueprints ("recipes") for future developers and AI agents extending the **LatinosPC Storefront (`latinospc.com`)**.
 
 ---
 
@@ -214,7 +214,7 @@ To create a printable order confirmation honoring the legal requirements from [`
 function renderReceipt($orderNumber, array $items, float $subtotal, $customerInfo) {
     ?>
     <div class="receipt-box" style="max-width: 600px; margin: 2rem auto; font-family: 'Inter', sans-serif; border: 1px solid #ddd; padding: 2rem; border-radius: 8px;">
-        <h2 style="margin-top:0;">NEXUS-7 Hardware Clearance</h2>
+        <h2 style="margin-top:0;">LatinosPC Hardware Clearance</h2>
         <p><strong>Order #:</strong> <?= htmlspecialchars($orderNumber) ?><br>
            <strong>Date:</strong> <?= date('F j, Y, g:i a') ?></p>
         
@@ -242,7 +242,7 @@ function renderReceipt($orderNumber, array $items, float $subtotal, $customerInf
         </div>
 
         <div style="background: #f8fafc; border-left: 4px solid #ef4444; padding: 12px; font-size: 0.8rem; color: #475569;">
-            <strong>ALL SALES ARE FINAL:</strong> Items are sold strictly as-is, where-is, with no warranties, returns, or refunds pursuant to the <a href="terms.php" target="_blank">NEXUS-7 Terms of Sale</a>.
+            <strong>ALL SALES ARE FINAL:</strong> Items are sold strictly as-is, where-is, with no warranties, returns, or refunds pursuant to the <a href="terms.php" target="_blank">LatinosPC Terms of Sale</a>.
         </div>
     </div>
     <?php

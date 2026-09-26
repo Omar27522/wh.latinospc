@@ -1,6 +1,6 @@
 # 🧪 Automated Testing & Verification Guide (`/store`)
 
-This guide explains how developers and AI agents can rapidly verify, test, and quality-assure the **NEXUS-7 Storefront** without needing a manual browser or a live web server.
+This guide explains how developers and AI agents can rapidly verify, test, and quality-assure the **LatinosPC Storefront (`latinospc.com`)** without needing a manual browser or a live web server.
 
 ---
 

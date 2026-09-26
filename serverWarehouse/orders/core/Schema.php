@@ -23,6 +23,10 @@ class Schema {
                 internal_notes TEXT,
                 callback_date TEXT DEFAULT '',
                 message_date TEXT DEFAULT '',
+                account_status TEXT DEFAULT 'Customer',
+                lead_source TEXT DEFAULT 'Manual',
+                interest TEXT DEFAULT '',
+                contact_method TEXT DEFAULT '',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )"
         ],
@@ -72,6 +76,7 @@ class Schema {
                 status TEXT DEFAULT '',
                 last_updated_by TEXT,
                 price REAL DEFAULT 0.00,
+                is_posted INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
@@ -83,8 +88,10 @@ class Schema {
             )",
             'location_statuses' => "CREATE TABLE IF NOT EXISTS location_statuses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE,
-                color TEXT
+                name TEXT NOT NULL,
+                color TEXT NOT NULL,
+                is_default INTEGER DEFAULT 1,
+                location_code TEXT DEFAULT NULL
             )",
             'working_zones' => "CREATE TABLE IF NOT EXISTS working_zones (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -173,6 +180,14 @@ class Schema {
                 target_id TEXT,
                 details TEXT,
                 ip_address TEXT
+            )",
+            'login_attempts' => "CREATE TABLE IF NOT EXISTS login_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip_address TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                attempt_count INTEGER DEFAULT 0,
+                last_attempt_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )"
         ],
         'calendar' => [
@@ -305,7 +320,10 @@ class Schema {
                     ['Warehoused', '#6366f1'],
                     ['Idle', '#64748b']
                 ];
-                $stmt = $conn->prepare("INSERT INTO location_statuses (name, color) VALUES (?, ?)");
+                $stmt = $conn->prepare("INSERT INTO location_statuses (name, color, is_default, location_code) VALUES (?, ?, 1, NULL)");
+                foreach ($statuses as $s) {
+                    $stmt->execute($s);
+                }
             }
         }
         if ($db_name === 'warehouse' && $table === 'working_zones') {
@@ -577,6 +595,10 @@ class Schema {
                 'contact_person'   => "ALTER TABLE customers ADD COLUMN contact_person TEXT DEFAULT ''",
                 'shipping_address' => "ALTER TABLE customers ADD COLUMN shipping_address TEXT DEFAULT ''",
                 'internal_notes'   => "ALTER TABLE customers ADD COLUMN internal_notes TEXT DEFAULT ''",
+                'account_status'   => "ALTER TABLE customers ADD COLUMN account_status TEXT DEFAULT 'Customer'",
+                'lead_source'      => "ALTER TABLE customers ADD COLUMN lead_source TEXT DEFAULT 'Manual'",
+                'interest'         => "ALTER TABLE customers ADD COLUMN interest TEXT DEFAULT ''",
+                'contact_method'   => "ALTER TABLE customers ADD COLUMN contact_method TEXT DEFAULT ''",
             ];
             foreach ($migrations as $col => $sql) {
                 if (!in_array($col, $cols)) {
@@ -613,18 +635,51 @@ class Schema {
         if ($db_name === 'warehouse' && $table === 'inventory') {
             $conn->exec("CREATE INDEX IF NOT EXISTS idx_inv_sector ON inventory(sector)");
             $conn->exec("CREATE INDEX IF NOT EXISTS idx_inv_brand ON inventory(brand)");
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_inv_location ON inventory(location_code)");
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_inv_sector_loc ON inventory(sector, location_code)");
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_inv_loc_sector ON inventory(location_code, sector)");
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_inv_brand_model ON inventory(brand, model)");
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_inv_updated ON inventory(updated_at DESC)");
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_inv_price ON inventory(price)");
 
             $cols = $conn->query("PRAGMA table_info(inventory)")->fetchAll(PDO::FETCH_ASSOC);
-            if (!in_array('price', array_column($cols, 'name'))) {
+            $col_names = array_column($cols, 'name');
+            if (!in_array('price', $col_names)) {
                 $conn->exec("ALTER TABLE inventory ADD COLUMN price REAL DEFAULT 0");
+            }
+            if (!in_array('is_posted', $col_names)) {
+                $conn->exec("ALTER TABLE inventory ADD COLUMN is_posted INTEGER DEFAULT 0");
+                $conn->exec("CREATE INDEX IF NOT EXISTS idx_inv_is_posted ON inventory(is_posted)");
             }
         }
 
         if ($db_name === 'warehouse' && $table === 'locations') {
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_locations_zone ON locations(working_zone_name, location_code)");
             $cols = $conn->query("PRAGMA table_info(locations)")->fetchAll(PDO::FETCH_ASSOC);
             if (!in_array('working_zone_name', array_column($cols, 'name'))) {
                 $conn->exec("ALTER TABLE locations ADD COLUMN working_zone_name TEXT DEFAULT NULL");
             }
+        }
+
+        if ($db_name === 'warehouse' && $table === 'location_statuses') {
+            $cols = array_column(
+                $conn->query("PRAGMA table_info(location_statuses)")->fetchAll(PDO::FETCH_ASSOC),
+                'name'
+            );
+            if (!in_array('is_default', $cols)) {
+                $conn->exec("ALTER TABLE location_statuses ADD COLUMN is_default INTEGER DEFAULT 1");
+                $conn->exec("UPDATE location_statuses SET is_default = 1 WHERE is_default IS NULL");
+            }
+            if (!in_array('location_code', $cols)) {
+                $conn->exec("ALTER TABLE location_statuses ADD COLUMN location_code TEXT DEFAULT NULL");
+            }
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_loc_statuses_name ON location_statuses(name)");
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_loc_statuses_code ON location_statuses(location_code)");
+        }
+
+        if ($db_name === 'warehouse' && $table === 'sold_items') {
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_sold_loc_sec ON sold_items(location_code, sector)");
+            $conn->exec("CREATE INDEX IF NOT EXISTS idx_sold_brand_model ON sold_items(brand, model)");
         }
 
         // --- Audit & User Indexes ---

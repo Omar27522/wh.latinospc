@@ -86,6 +86,8 @@ class Database
                 $conn->exec("PRAGMA busy_timeout = 5000;");
                 $conn->exec("PRAGMA synchronous = NORMAL;");
                 $conn->exec("PRAGMA foreign_keys = ON;");
+                $conn->exec("PRAGMA cache_size = -64000;");
+                $conn->exec("PRAGMA temp_store = MEMORY;");
 
                 // Self-Healing Schema Integration for Orders/Warehouse/Customers/Users/Calendar
                 $schema_file = __DIR__ . '/../orders/core/Schema.php';
@@ -99,6 +101,17 @@ class Database
                 // Initialize Schema for Tech module if connecting to tech.db
                 if ($db_name === 'tech') {
                     self::initTechSchema($conn);
+                }
+
+                // Initialize Schema for Marketing module if connecting to marketing.db
+                if ($db_name === 'marketing') {
+                    $mkt_schema = __DIR__ . '/../marketing/includes/schema_guard.php';
+                    if (file_exists($mkt_schema)) {
+                        require_once $mkt_schema;
+                        if (function_exists('marketing_schema_guard')) {
+                            marketing_schema_guard($conn);
+                        }
+                    }
                 }
 
                 self::$instances[$db_name] = $conn;
@@ -148,8 +161,22 @@ class Database
      */
     public static function attach(PDO $conn, $db_to_attach, $alias)
     {
-        $db_path = self::getDbDir() . '/' . $db_to_attach . '.db';
-        $conn->exec("ATTACH DATABASE '{$db_path}' AS {$alias}");
+        try {
+            $stmt = $conn->query("PRAGMA database_list");
+            if ($stmt) {
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    if (strcasecmp($row['name'] ?? '', $alias) === 0) {
+                        return; // Already attached
+                    }
+                }
+            }
+            $db_path = self::getDbDir() . '/' . $db_to_attach . '.db';
+            $conn->exec("ATTACH DATABASE '{$db_path}' AS {$alias}");
+        } catch (PDOException $e) {
+            if (strpos($e->getMessage(), 'already in use') === false) {
+                throw $e;
+            }
+        }
     }
 
     /**
