@@ -28,7 +28,7 @@ $main_columns = ['brand', 'model', 'quantity', 'price', 'location_code'];
 // Allowed specs keys
 $allowed_specs_keys = [
     'cpu', 'gpu', 'ram', 'storage', 'battery', 'windows', 'series', 'gen', 'bios', 'condition', 'notes',
-    'gaming_category', 'cpu_gen', 'type', 'voltage'
+    'gaming_category', 'category', 'cpu_gen', 'type', 'voltage'
 ];
 
 if (!in_array($field, $main_columns) && !in_array($field, $allowed_specs_keys)) {
@@ -49,7 +49,7 @@ try {
         } elseif ($field === 'location_code') {
             $value = trim($value);
             if (!empty($value)) {
-                $zone = trim($_POST['zone'] ?? '');
+                $zone = trim($input['zone'] ?? $_POST['zone'] ?? '');
                 if (empty($zone)) {
                     if (preg_match('/^(?:Zone\s*[-_]?)?([a-zA-Z0-9]+)/iu', $value, $matches)) {
                         $prefix = strtoupper($matches[1]);
@@ -86,6 +86,12 @@ try {
 
         $specs = json_decode($specs_json_raw ?: '{}', true) ?: [];
         $specs[$field] = trim($value);
+
+        // Keep category and gaming_category synchronized
+        if ($field === 'gaming_category' || $field === 'category') {
+            $specs['gaming_category'] = trim($value);
+            $specs['category'] = trim($value);
+        }
 
         $specs_json_updated = json_encode($specs);
 

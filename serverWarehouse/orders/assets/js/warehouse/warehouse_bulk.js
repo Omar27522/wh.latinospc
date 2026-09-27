@@ -263,11 +263,14 @@ function extractWarehouseRowData(card) {
     const notesInput = card.querySelector('[data-field="notes"] .cell-input');
     const notesVal = (notesInput ? notesInput.value.trim() : (specs.notes || '')).toLowerCase();
 
+    const categoryInput = card.querySelector('[data-field="gaming_category"] .cell-input') || card.querySelector('[data-field="type"] .cell-input');
+    const categoryVal = (categoryInput ? categoryInput.value.trim() : (specs.gaming_category || specs.category || specs.type || '')).toLowerCase();
+
     const statusVal = (card.querySelector('.status-badge')?.textContent || '').toLowerCase();
 
     // Normalizations & Synonyms Expansion
     const rawTokens = [
-        brand, model, location, sector, seriesVal, cpuVal, genVal, ramVal, storageVal, gpuVal, batteryVal, conditionVal, notesVal, statusVal
+        brand, model, location, sector, categoryVal, seriesVal, cpuVal, genVal, ramVal, storageVal, gpuVal, batteryVal, conditionVal, notesVal, statusVal
     ];
     const rawSearch = rawTokens.join(' ').toLowerCase();
     const cleanSearch = rawSearch.replace(/[-_.,/\\#;:()]/g, ' ');

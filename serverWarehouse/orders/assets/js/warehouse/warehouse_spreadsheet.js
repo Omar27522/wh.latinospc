@@ -15,9 +15,60 @@ function initWarehouseSpreadsheetEvents() {
     const metadata = document.getElementById('warehouse-metadata');
     if (!metadata) return;
 
+    // Pre-cache lastSavedValue for existing inputs in the table
+    listContainer.querySelectorAll('.cell-input').forEach(input => {
+        if (input.dataset.lastSavedValue === undefined) {
+            input.dataset.lastSavedValue = input.value.trim();
+        }
+    });
+
+    // Cache baseline on focusin so dynamically added/rendered cells track changes accurately
+    listContainer.addEventListener('focusin', (e) => {
+        if (e.target && e.target.classList.contains('cell-input')) {
+            if (e.target.dataset.lastSavedValue === undefined) {
+                e.target.dataset.lastSavedValue = e.target.value.trim();
+            }
+        }
+    });
+
+    // Debounced auto-save on typing so changes save even if user pauses without blurring (600ms)
+    listContainer.addEventListener('input', (e) => {
+        if (e.target && e.target.classList.contains('cell-input')) {
+            const row = e.target.closest('tr');
+            if (!row || row.getAttribute('data-id') === 'new') return;
+
+            if (e.target._debounceTimer) {
+                clearTimeout(e.target._debounceTimer);
+            }
+            e.target._debounceTimer = setTimeout(() => {
+                e.target._debounceTimer = null;
+                handleWarehouseCellSave(e.target);
+            }, 600);
+        }
+    });
+
+    // Immediate save on change event (datalist clicks, selects, or committed inputs)
+    listContainer.addEventListener('change', (e) => {
+        if (e.target && e.target.classList.contains('cell-input')) {
+            const row = e.target.closest('tr');
+            if (!row || row.getAttribute('data-id') === 'new') return;
+
+            if (e.target._debounceTimer) {
+                clearTimeout(e.target._debounceTimer);
+                e.target._debounceTimer = null;
+            }
+            handleWarehouseCellSave(e.target);
+        }
+    });
+
     // Handle blur updates (Auto-save)
     listContainer.addEventListener('focusout', (e) => {
         if (e.target && e.target.classList.contains('cell-input')) {
+            if (e.target._debounceTimer) {
+                clearTimeout(e.target._debounceTimer);
+                e.target._debounceTimer = null;
+            }
+
             const row = e.target.closest('tr');
             if (!row) return;
 
@@ -171,12 +222,26 @@ async function handleWarehouseCellSave(input) {
 
     const rowId = row.getAttribute('data-id');
     const field = cell.getAttribute('data-field');
+    if (!field) return;
+
     const val = input.value.trim();
 
     // Skip save if it's a new row (handled by createWarehouseRowFromBlank)
     if (rowId === 'new') {
         return;
     }
+
+    // Skip redundant save if value didn't change from last confirmed save
+    if (input.dataset.lastSavedValue !== undefined && input.dataset.lastSavedValue === val) {
+        return;
+    }
+
+    // Queue if a save is already currently in flight for this cell
+    if (input.dataset.isSaving === 'true') {
+        input.dataset.pendingSaveValue = val;
+        return;
+    }
+    input.dataset.isSaving = 'true';
 
     const metadata = document.getElementById('warehouse-metadata');
     const activeZone = metadata ? (metadata.getAttribute('data-zone') || '') : '';
@@ -190,6 +255,8 @@ async function handleWarehouseCellSave(input) {
         });
 
         if (result.success) {
+            input.dataset.lastSavedValue = val;
+
             const data = result.data || result;
             const counter = document.getElementById('sidebar-total-qty');
             if (counter && data.new_total !== undefined) {
@@ -197,10 +264,17 @@ async function handleWarehouseCellSave(input) {
                 counter.classList.add('pulse');
                 setTimeout(() => counter.classList.remove('pulse'), 500);
             }
-            cell.style.backgroundColor = 'rgba(140, 198, 63, 0.15)';
+
+            // Green pulse feedback on cell and input
+            cell.classList.remove('cell-saved-pulse');
+            input.classList.remove('cell-saved-pulse');
+            void cell.offsetWidth;
+            cell.classList.add('cell-saved-pulse');
+            input.classList.add('cell-saved-pulse');
             setTimeout(() => {
-                cell.style.backgroundColor = '';
-            }, 600);
+                cell.classList.remove('cell-saved-pulse');
+                input.classList.remove('cell-saved-pulse');
+            }, 1200);
 
             if (typeof updateWarehouseRowSearchIndex === 'function') {
                 updateWarehouseRowSearchIndex(row);
@@ -210,13 +284,41 @@ async function handleWarehouseCellSave(input) {
             }
         } else {
             console.error('Save failed:', result.message || result.error);
-            cell.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+            cell.classList.remove('cell-error-pulse');
+            input.classList.remove('cell-error-pulse');
+            void cell.offsetWidth;
+            cell.classList.add('cell-error-pulse');
+            input.classList.add('cell-error-pulse');
             setTimeout(() => {
-                cell.style.backgroundColor = '';
-            }, 1000);
+                cell.classList.remove('cell-error-pulse');
+                input.classList.remove('cell-error-pulse');
+            }, 1200);
+
+            const notifyEngine = window.Notifications || window.IQA_Notify;
+            if (notifyEngine && typeof notifyEngine.error === 'function') {
+                notifyEngine.error(result.message || result.error || 'Failed to save cell change');
+            }
         }
     } catch (err) {
         console.error('Error updating cell field:', err);
+        cell.classList.remove('cell-error-pulse');
+        input.classList.remove('cell-error-pulse');
+        void cell.offsetWidth;
+        cell.classList.add('cell-error-pulse');
+        input.classList.add('cell-error-pulse');
+        setTimeout(() => {
+            cell.classList.remove('cell-error-pulse');
+            input.classList.remove('cell-error-pulse');
+        }, 1200);
+    } finally {
+        delete input.dataset.isSaving;
+        if (input.dataset.pendingSaveValue !== undefined) {
+            const pendingVal = input.dataset.pendingSaveValue;
+            delete input.dataset.pendingSaveValue;
+            if (pendingVal !== input.dataset.lastSavedValue) {
+                handleWarehouseCellSave(input);
+            }
+        }
     }
 }
 

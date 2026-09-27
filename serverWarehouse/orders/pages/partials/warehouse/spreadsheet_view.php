@@ -241,7 +241,7 @@ if (empty($default_shelf) && !empty($active_zone_name)) {
                         data-qty="<?= (int)$item['quantity'] ?>"
                         data-price="<?= htmlspecialchars($item['price'] ?? '0.00') ?>"
                         data-specs='<?= htmlspecialchars($item['specs_json'], ENT_QUOTES) ?>'
-                        data-search="<?= htmlspecialchars(strtolower($item['brand'] . ' ' . $item['model'] . ' ' . ($item['location_code'] ?? '') . ' ' . ($item['sector'] ?? '') . ' ' . ($specs['cpu'] ?? '') . ' ' . ($specs['ram'] ?? '') . ' ' . ($specs['storage'] ?? '') . ' ' . ($specs['series'] ?? '') . ' ' . ($specs['notes'] ?? '') . ' ' . ($specs['condition'] ?? ''))) ?>">
+                        data-search="<?= htmlspecialchars(strtolower($item['brand'] . ' ' . $item['model'] . ' ' . ($item['location_code'] ?? '') . ' ' . ($item['sector'] ?? '') . ' ' . ($specs['cpu'] ?? '') . ' ' . ($specs['ram'] ?? '') . ' ' . ($specs['storage'] ?? '') . ' ' . ($specs['series'] ?? '') . ' ' . ($specs['notes'] ?? '') . ' ' . ($specs['condition'] ?? '') . ' ' . ($specs['gaming_category'] ?? $specs['category'] ?? ''))) ?>">
 
                         <?php if ($show_location_col): ?>
                             <td class="editable-cell" data-field="location_code">
@@ -277,7 +277,7 @@ if (empty($default_shelf) && !empty($active_zone_name)) {
                             </td>
                         <?php elseif ($selected_sector === 'Gaming'): ?>
                             <td class="editable-cell" data-field="gaming_category">
-                                <input type="text" class="cell-input" value="<?= htmlspecialchars($specs['category'] ?? '') ?>" list="gaming-cat-list" placeholder="...">
+                                <input type="text" class="cell-input" value="<?= htmlspecialchars($specs['gaming_category'] ?? $specs['category'] ?? '') ?>" list="gaming-cat-list" placeholder="...">
                             </td>
                             <td class="editable-cell" data-field="series">
                                 <input type="text" class="cell-input" value="<?= htmlspecialchars($specs['series'] ?? '') ?>" placeholder="...">
